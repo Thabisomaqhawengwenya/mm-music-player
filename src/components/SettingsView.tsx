@@ -17,6 +17,7 @@ interface SettingsViewProps {
   theme: AppTheme;
   onThemeChanged: (newTheme: AppTheme) => void;
   onOpenCloudSync: () => void;
+  onOpenTerms: () => void;
   onScanDevice: () => void;
   onPickFiles: () => void;
   onSettingsChanged: () => void;
@@ -26,6 +27,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   theme,
   onThemeChanged,
   onOpenCloudSync,
+  onOpenTerms,
   onScanDevice,
   onPickFiles,
   onSettingsChanged,
@@ -250,7 +252,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </TactileButton>
       </View>
 
-      {/* 5. About & Specs */}
+      {/* 5. Legal & Policies */}
+      <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
+        <Ionicons name="shield-checkmark-outline" size={18} color={theme.accent} />
+        <Text style={[styles.sectionTitle, { color: theme.accent }]}>LEGAL & POLICIES</Text>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+        <TactileButton onPress={onOpenTerms} style={styles.actionRowBtn}>
+          <View style={[styles.actionIconBox, { backgroundColor: `${theme.accent}20` }]}>
+            <Ionicons name="document-text-outline" size={20} color={theme.accent} />
+          </View>
+          <View style={styles.rowTextCol}>
+            <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>Terms & Conditions</Text>
+            <Text style={[styles.rowSubtitle, { color: theme.textSecondary }]}>
+              Usage license, copyright & legal notices
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+        </TactileButton>
+      </View>
+
+      {/* 6. About & Specs */}
       <View style={styles.aboutFooter}>
         <Text style={[styles.aboutBrand, { color: theme.accent }]}>MM HI-FI AUDIO PLAYER</Text>
         <Text style={[styles.aboutVersion, { color: theme.textTertiary }]}>

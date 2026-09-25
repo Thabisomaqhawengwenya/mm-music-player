@@ -44,6 +44,7 @@ import { SettingsView } from './src/components/SettingsView';
 import { TagEditorModal } from './src/components/TagEditorModal';
 import { ThemeSwitcherModal } from './src/components/ThemeSwitcherModal';
 import { CloudSyncModal } from './src/components/CloudSyncModal';
+import { TermsModal } from './src/components/TermsModal';
 import { formatFileSize } from './src/utils/formatters';
 
 type MainNavTab = 'library' | 'playlists' | 'search' | 'settings';
@@ -88,6 +89,7 @@ export default function App() {
   const [playlistsOpen, setPlaylistsOpen] = useState(false);
   const [themeSwitcherOpen, setThemeSwitcherOpen] = useState(false);
   const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
   const [tagEditorTrack, setTagEditorTrack] = useState<Track | null>(null);
   const [addTrackToPlaylistTarget, setAddTrackToPlaylistTarget] = useState<Track | null>(null);
 
@@ -580,6 +582,7 @@ export default function App() {
             theme={theme}
             onThemeChanged={(newTheme) => setTheme(newTheme)}
             onOpenCloudSync={() => setCloudSyncOpen(true)}
+            onOpenTerms={() => setTermsOpen(true)}
             onScanDevice={handleScanDevice}
             onPickFiles={handlePickFiles}
             onSettingsChanged={() => loadInitialData()}
@@ -794,6 +797,13 @@ export default function App() {
           if (THEMES[id]) setTheme(THEMES[id]);
           loadInitialData();
         }}
+      />
+
+      {/* Terms & Conditions Modal */}
+      <TermsModal
+        visible={termsOpen}
+        onClose={() => setTermsOpen(false)}
+        theme={theme}
       />
     </SafeAreaView>
   );
