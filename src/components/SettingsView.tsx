@@ -1,17 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Switch,
+  TextInput,
   Alert,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { AppTheme, AudioSettings } from '../types';
+import {
+  AppTheme,
+  AudioSettings,
+  HeadsetSettings,
+  NotificationSettings,
+  LockscreenSettings,
+  AdvancedSettings,
+  WidgetSettings,
+} from '../types';
 import { THEMES } from '../constants/theme';
-import { StorageService } from '../services/playlistStorage';
+import {
+  StorageService,
+  defaultAudioSettings,
+  defaultHeadsetSettings,
+  defaultNotificationSettings,
+  defaultLockscreenSettings,
+  defaultAdvancedSettings,
+  defaultWidgetSettings,
+} from '../services/playlistStorage';
 import { TactileButton } from './TactileButton';
+
+type SettingsCategory =
+  | 'root'
+  | 'language'
+  | 'interface'
+  | 'audio'
+  | 'library'
+  | 'headset'
+  | 'notifications'
+  | 'widgets'
+  | 'lockscreen'
+  | 'advanced'
+  | 'backup'
+  | 'legal';
 
 interface SettingsViewProps {
   theme: AppTheme;
@@ -21,7 +53,18 @@ interface SettingsViewProps {
   onScanDevice: () => void;
   onPickFiles: () => void;
   onSettingsChanged: () => void;
+  onOpenEqualizer?: () => void;
 }
+
+const LANGUAGES = [
+  { code: 'en', name: 'English (US / UK)' },
+  { code: 'es', name: 'Español' },
+  { code: 'fr', name: 'Français' },
+  { code: 'zu', name: 'isiZulu' },
+  { code: 'pt', name: 'Português' },
+  { code: 'de', name: 'Deutsch' },
+  { code: 'ja', name: '日本語' },
+];
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   theme,
@@ -31,302 +74,1044 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onScanDevice,
   onPickFiles,
   onSettingsChanged,
+  onOpenEqualizer,
 }) => {
-  const [audioSettings, setAudioSettings] = useState<AudioSettings>({
-    crossfadeDuration: 3,
-    minDurationSeconds: 30,
-    excludeFolders: ['WhatsApp Audio', 'Notifications', 'Ringtones'],
-    gaplessPlayback: true,
-    normalizeVolume: false,
-  });
+  const [activeCategory, setActiveCategory] = useState<SettingsCategory>('root');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Loaded Settings
+  const [language, setLanguage] = useState('en');
+  const [audioSettings, setAudioSettings] = useState<AudioSettings>(defaultAudioSettings);
+  const [headsetSettings, setHeadsetSettings] = useState<HeadsetSettings>(defaultHeadsetSettings);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
+  const [lockscreenSettings, setLockscreenSettings] = useState<LockscreenSettings>(defaultLockscreenSettings);
+  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>(defaultAdvancedSettings);
+  const [widgetSettings, setWidgetSettings] = useState<WidgetSettings>(defaultWidgetSettings);
 
   useEffect(() => {
-    loadSettings();
+    loadAllSettings();
   }, []);
 
-  const loadSettings = async () => {
-    const s = await StorageService.getAudioSettings();
-    setAudioSettings(s);
+  const loadAllSettings = async () => {
+    const [lang, audio, headset, notif, lock, adv, widget] = await Promise.all([
+      StorageService.getLanguage(),
+      StorageService.getAudioSettings(),
+      StorageService.getHeadsetSettings(),
+      StorageService.getNotificationSettings(),
+      StorageService.getLockscreenSettings(),
+      StorageService.getAdvancedSettings(),
+      StorageService.getWidgetSettings(),
+    ]);
+
+    setLanguage(lang);
+    setAudioSettings(audio);
+    setHeadsetSettings(headset);
+    setNotificationSettings(notif);
+    setLockscreenSettings(lock);
+    setAdvancedSettings(adv);
+    setWidgetSettings(widget);
   };
 
-  const updateSetting = async <K extends keyof AudioSettings>(key: K, value: AudioSettings[K]) => {
+  // Update Handlers
+  const handleUpdateAudio = async <K extends keyof AudioSettings>(key: K, value: AudioSettings[K]) => {
     const updated = { ...audioSettings, [key]: value };
     setAudioSettings(updated);
     await StorageService.saveAudioSettings(updated);
     onSettingsChanged();
   };
 
+  const handleUpdateHeadset = async <K extends keyof HeadsetSettings>(key: K, value: HeadsetSettings[K]) => {
+    const updated = { ...headsetSettings, [key]: value };
+    setHeadsetSettings(updated);
+    await StorageService.saveHeadsetSettings(updated);
+  };
+
+  const handleUpdateNotification = async <K extends keyof NotificationSettings>(key: K, value: NotificationSettings[K]) => {
+    const updated = { ...notificationSettings, [key]: value };
+    setNotificationSettings(updated);
+    await StorageService.saveNotificationSettings(updated);
+  };
+
+  const handleUpdateLockscreen = async <K extends keyof LockscreenSettings>(key: K, value: LockscreenSettings[K]) => {
+    const updated = { ...lockscreenSettings, [key]: value };
+    setLockscreenSettings(updated);
+    await StorageService.saveLockscreenSettings(updated);
+  };
+
+  const handleUpdateAdvanced = async <K extends keyof AdvancedSettings>(key: K, value: AdvancedSettings[K]) => {
+    const updated = { ...advancedSettings, [key]: value };
+    setAdvancedSettings(updated);
+    await StorageService.saveAdvancedSettings(updated);
+  };
+
+  const handleUpdateWidget = async <K extends keyof WidgetSettings>(key: K, value: WidgetSettings[K]) => {
+    const updated = { ...widgetSettings, [key]: value };
+    setWidgetSettings(updated);
+    await StorageService.saveWidgetSettings(updated);
+  };
+
+  const handleSelectLanguage = async (code: string) => {
+    setLanguage(code);
+    await StorageService.saveLanguage(code);
+    Alert.alert('Language Updated', `Display language set to ${LANGUAGES.find((l) => l.code === code)?.name}.`);
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      const json = await StorageService.exportBackupData();
+      await Share.share({
+        title: 'MM Music Player Backup',
+        message: json,
+      });
+    } catch {
+      Alert.alert('Export Error', 'Could not export backup data.');
+    }
+  };
+
+  const handleResetSettings = () => {
+    Alert.alert(
+      'Reset All Settings',
+      'Are you sure you want to reset all audio, interface, and hardware preferences to defaults?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            await StorageService.resetAllSettings();
+            await loadAllSettings();
+            onSettingsChanged();
+            Alert.alert('Settings Reset', 'All settings restored to factory defaults.');
+          },
+        },
+      ]
+    );
+  };
+
+  // Main Musicolet Categories list matching Screenshot 1
+  const categories = [
+    {
+      id: 'language' as SettingsCategory,
+      title: 'Language',
+      subtitle: LANGUAGES.find((l) => l.code === language)?.name || 'English',
+      icon: 'globe-outline' as const,
+    },
+    {
+      id: 'interface' as SettingsCategory,
+      title: 'Interface',
+      subtitle: `${theme.name} • Visualizer & Layout`,
+      icon: 'color-palette-outline' as const,
+    },
+    {
+      id: 'audio' as SettingsCategory,
+      title: 'Audio',
+      subtitle: 'Equalizer, Crossfade, Gapless & ReplayGain',
+      icon: 'volume-high-outline' as const,
+    },
+    {
+      id: 'library' as SettingsCategory,
+      title: 'Song library and tags',
+      subtitle: 'Storage scan, Duration filters, Exclude folders',
+      icon: 'bookmark-outline' as const,
+    },
+    {
+      id: 'headset' as SettingsCategory,
+      title: 'Headset, Bluetooth and speakers',
+      subtitle: 'Auto-pause, Reconnect, Media keys',
+      icon: 'headset-outline' as const,
+    },
+    {
+      id: 'notifications' as SettingsCategory,
+      title: 'Notifications',
+      subtitle: 'Media controls, Artwork & Actions',
+      icon: 'notifications-outline' as const,
+    },
+    {
+      id: 'widgets' as SettingsCategory,
+      title: 'HomeScreen widgets',
+      subtitle: 'Widget themes, Translucency, Layouts',
+      icon: 'apps-outline' as const,
+    },
+    {
+      id: 'lockscreen' as SettingsCategory,
+      title: 'MM lock-screen',
+      subtitle: 'Lockscreen player & Full-screen artwork',
+      icon: 'lock-closed-outline' as const,
+    },
+    {
+      id: 'advanced' as SettingsCategory,
+      title: 'Advanced',
+      subtitle: 'Audio buffer, Cache management & Reset',
+      icon: 'settings-outline' as const,
+    },
+    {
+      id: 'backup' as SettingsCategory,
+      title: 'Backup/Restore',
+      subtitle: 'Cloud Sync, JSON export/import',
+      icon: 'refresh-circle-outline' as const,
+    },
+    {
+      id: 'legal' as SettingsCategory,
+      title: 'Legal & Policies',
+      subtitle: 'Terms & Conditions, Privacy & Version',
+      icon: 'document-text-outline' as const,
+    },
+  ];
+
+  // Filtered categories when search query active
+  const filteredCategories = useMemo(() => {
+    if (!searchQuery.trim()) return categories;
+    const q = searchQuery.toLowerCase();
+    return categories.filter(
+      (c) => c.title.toLowerCase().includes(q) || c.subtitle.toLowerCase().includes(q)
+    );
+  }, [searchQuery, categories]);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* 1. Audio Engine Section */}
-      <View style={styles.sectionHeaderRow}>
-        <Ionicons name="hardware-chip-outline" size={18} color={theme.accent} />
-        <Text style={[styles.sectionTitle, { color: theme.accent }]}>AUDIO DSP & ENGINE</Text>
-      </View>
-
-      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
-        {/* Min Duration Filter */}
-        <View style={styles.row}>
-          <View style={styles.rowTextCol}>
-            <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>Filter Out Short Audio</Text>
-            <Text style={[styles.rowSubtitle, { color: theme.textSecondary }]}>
-              Hides voice notes and ringtones under {audioSettings.minDurationSeconds}s
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.pillSelectorRow}>
-          {[0, 15, 30, 60].map((sec) => (
+    <View style={styles.root}>
+      {/* Top Header Bar */}
+      <View style={[styles.topHeader, { borderBottomColor: theme.surfaceBorder }]}>
+        <View style={styles.topHeaderLeft}>
+          {activeCategory !== 'root' ? (
             <TactileButton
-              key={sec}
-              onPress={() => updateSetting('minDurationSeconds', sec)}
-              style={[
-                styles.filterPill,
-                {
-                  backgroundColor: audioSettings.minDurationSeconds === sec ? theme.accent : theme.surfaceLight,
-                  borderColor: audioSettings.minDurationSeconds === sec ? theme.accent : theme.surfaceBorder,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.filterPillText,
-                  { color: audioSettings.minDurationSeconds === sec ? theme.background : theme.textSecondary },
-                ]}
-              >
-                {sec === 0 ? 'Off (Show All)' : `>${sec}s`}
-              </Text>
-            </TactileButton>
-          ))}
-        </View>
-
-        <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
-
-        {/* Crossfade */}
-        <View style={styles.row}>
-          <View style={styles.rowTextCol}>
-            <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>Crossfade Duration</Text>
-            <Text style={[styles.rowSubtitle, { color: theme.textSecondary }]}>
-              {audioSettings.crossfadeDuration === 0
-                ? 'Instant track changes'
-                : `${audioSettings.crossfadeDuration}s transition between songs`}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.pillSelectorRow}>
-          {[0, 3, 5, 8].map((sec) => (
-            <TactileButton
-              key={sec}
-              onPress={() => updateSetting('crossfadeDuration', sec)}
-              style={[
-                styles.filterPill,
-                {
-                  backgroundColor: audioSettings.crossfadeDuration === sec ? theme.accent : theme.surfaceLight,
-                  borderColor: audioSettings.crossfadeDuration === sec ? theme.accent : theme.surfaceBorder,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.filterPillText,
-                  { color: audioSettings.crossfadeDuration === sec ? theme.background : theme.textSecondary },
-                ]}
-              >
-                {sec === 0 ? '0s (None)' : `${sec}s`}
-              </Text>
-            </TactileButton>
-          ))}
-        </View>
-
-        <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
-
-        {/* Gapless Playback */}
-        <View style={styles.switchRow}>
-          <View style={styles.rowTextCol}>
-            <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>Gapless Playback</Text>
-            <Text style={[styles.rowSubtitle, { color: theme.textSecondary }]}>
-              Continuous flow without silent gaps
-            </Text>
-          </View>
-          <Switch
-            value={audioSettings.gaplessPlayback}
-            onValueChange={(val) => updateSetting('gaplessPlayback', val)}
-            trackColor={{ false: theme.surfaceLight, true: theme.accent }}
-            thumbColor={theme.textPrimary}
-          />
-        </View>
-      </View>
-
-      {/* 2. Theme & Visual Style Section */}
-      <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
-        <Ionicons name="color-palette-outline" size={18} color={theme.accent} />
-        <Text style={[styles.sectionTitle, { color: theme.accent }]}>THEME & APPEARANCE</Text>
-      </View>
-
-      <View style={styles.themesGrid}>
-        {Object.values(THEMES).map((t) => {
-          const isSelected = theme.id === t.id;
-          return (
-            <TactileButton
-              key={t.id}
-              onPress={async () => {
-                await StorageService.saveThemeId(t.id);
-                onThemeChanged(t);
+              onPress={() => {
+                setActiveCategory('root');
+                setIsSearching(false);
               }}
-              style={[
-                styles.themeCard,
-                {
-                  backgroundColor: t.surface,
-                  borderColor: isSelected ? t.accent : theme.surfaceBorder,
-                  borderWidth: isSelected ? 2 : 1,
-                },
-              ]}
+              style={styles.backBtn}
             >
-              <View style={[styles.themePreviewPalette, { backgroundColor: t.background }]}>
-                <View style={[styles.themeAccentDot, { backgroundColor: t.accent }]} />
-                <View style={[styles.themeSurfaceBar, { backgroundColor: t.surfaceLight }]} />
-              </View>
-              <Text style={[styles.themeCardName, { color: isSelected ? t.accent : theme.textPrimary }]}>
-                {t.name}
-              </Text>
+              <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
             </TactileButton>
-          );
-        })}
-      </View>
+          ) : (
+            <View style={{ width: 8 }} />
+          )}
+          <Text style={[styles.screenTitle, { color: theme.textPrimary }]}>
+            {activeCategory === 'root'
+              ? 'Settings'
+              : categories.find((c) => c.id === activeCategory)?.title || 'Settings'}
+          </Text>
+        </View>
 
-      {/* 3. Storage & Library Maintenance */}
-      <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
-        <Ionicons name="folder-outline" size={18} color={theme.accent} />
-        <Text style={[styles.sectionTitle, { color: theme.accent }]}>STORAGE & LIBRARY SCAN</Text>
-      </View>
-
-      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
-        <TactileButton onPress={onScanDevice} style={styles.actionRowBtn}>
-          <View style={[styles.actionIconBox, { backgroundColor: `${theme.accent}20` }]}>
-            <Ionicons name="scan-outline" size={20} color={theme.accent} />
-          </View>
-          <View style={styles.rowTextCol}>
-            <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>Rescan Device Storage</Text>
-            <Text style={[styles.rowSubtitle, { color: theme.textSecondary }]}>
-              Detect newly downloaded songs
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-        </TactileButton>
-
-        <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
-
-        <TactileButton onPress={onPickFiles} style={styles.actionRowBtn}>
-          <View style={[styles.actionIconBox, { backgroundColor: `${theme.accent}20` }]}>
-            <Ionicons name="document-text-outline" size={20} color={theme.accent} />
-          </View>
-          <View style={styles.rowTextCol}>
-            <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>Pick Specific Audio Files</Text>
-            <Text style={[styles.rowSubtitle, { color: theme.textSecondary }]}>
-              Import audio from Downloads or SD card
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+        <TactileButton
+          onPress={() => setIsSearching((prev) => !prev)}
+          style={styles.searchToggleBtn}
+        >
+          <Ionicons
+            name={isSearching ? 'close' : 'search'}
+            size={22}
+            color={isSearching ? theme.accent : theme.textPrimary}
+          />
         </TactileButton>
       </View>
 
-      {/* 4. Cloud Sync & Backup */}
-      <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
-        <Ionicons name="cloud-upload-outline" size={18} color={theme.accent} />
-        <Text style={[styles.sectionTitle, { color: theme.accent }]}>CLOUD BACKUP & SYNC</Text>
-      </View>
+      {/* Optional Search Bar Input */}
+      {isSearching && (
+        <View style={[styles.searchBarBox, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+          <Ionicons name="search" size={18} color={theme.accent} />
+          <TextInput
+            style={[styles.searchInput, { color: theme.textPrimary }]}
+            placeholder="Search a setting..."
+            placeholderTextColor={theme.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoFocus
+          />
+          {searchQuery.length > 0 && (
+            <TactileButton onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color={theme.textTertiary} />
+            </TactileButton>
+          )}
+        </View>
+      )}
 
-      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
-        <TactileButton onPress={onOpenCloudSync} style={styles.actionRowBtn}>
-          <View style={[styles.actionIconBox, { backgroundColor: `${theme.accent}20` }]}>
-            <Ionicons name="cloud-done-outline" size={20} color={theme.accent} />
+      {/* Main Content Area */}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* ROOT CATEGORIES LIST (Musicolet style) */}
+        {activeCategory === 'root' && (
+          <View style={styles.categoryList}>
+            {filteredCategories.map((cat) => (
+              <TactileButton
+                key={cat.id}
+                onPress={() => {
+                  if (cat.id === 'legal') {
+                    onOpenTerms();
+                  } else {
+                    setActiveCategory(cat.id);
+                  }
+                }}
+                style={[
+                  styles.categoryRow,
+                  { borderBottomColor: theme.surfaceBorder },
+                ]}
+              >
+                <View style={styles.categoryIconWrap}>
+                  <Ionicons name={cat.icon} size={24} color={theme.textPrimary} />
+                </View>
+                <View style={styles.categoryTextWrap}>
+                  <Text style={[styles.categoryTitle, { color: theme.textPrimary }]}>
+                    {cat.title}
+                  </Text>
+                  <Text style={[styles.categorySubtitle, { color: theme.textSecondary }]}>
+                    {cat.subtitle}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+              </TactileButton>
+            ))}
+
+            {/* Quick Musicolet Search a Setting pill at bottom */}
+            {!isSearching && (
+              <TactileButton
+                onPress={() => setIsSearching(true)}
+                style={[styles.bottomSearchPill, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}
+              >
+                <Ionicons name="play" size={12} color={theme.accent} />
+                <Text style={[styles.bottomSearchText, { color: theme.textTertiary }]}>
+                  Search a setting...
+                </Text>
+              </TactileButton>
+            )}
           </View>
-          <View style={styles.rowTextCol}>
-            <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>Cloud Sync Dashboard</Text>
-            <Text style={[styles.rowSubtitle, { color: theme.textSecondary }]}>
-              Sync playlists, favorites & tags with private backend
+        )}
+
+        {/* 1. LANGUAGE */}
+        {activeCategory === 'language' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Choose the primary language for audio controls, library tags, and navigation.
             </Text>
+            {LANGUAGES.map((item) => (
+              <TactileButton
+                key={item.code}
+                onPress={() => handleSelectLanguage(item.code)}
+                style={[
+                  styles.optionCard,
+                  {
+                    backgroundColor: language === item.code ? `${theme.accent}15` : theme.surface,
+                    borderColor: language === item.code ? theme.accent : theme.surfaceBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.optionCardTitle, { color: theme.textPrimary }]}>
+                  {item.name}
+                </Text>
+                {language === item.code && (
+                  <Ionicons name="checkmark-circle" size={20} color={theme.accent} />
+                )}
+              </TactileButton>
+            ))}
           </View>
-          <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-        </TactileButton>
-      </View>
+        )}
 
-      {/* 5. Legal & Policies */}
-      <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
-        <Ionicons name="shield-checkmark-outline" size={18} color={theme.accent} />
-        <Text style={[styles.sectionTitle, { color: theme.accent }]}>LEGAL & POLICIES</Text>
-      </View>
-
-      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
-        <TactileButton onPress={onOpenTerms} style={styles.actionRowBtn}>
-          <View style={[styles.actionIconBox, { backgroundColor: `${theme.accent}20` }]}>
-            <Ionicons name="document-text-outline" size={20} color={theme.accent} />
-          </View>
-          <View style={styles.rowTextCol}>
-            <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>Terms & Conditions</Text>
-            <Text style={[styles.rowSubtitle, { color: theme.textSecondary }]}>
-              Usage license, copyright & legal notices
+        {/* 2. INTERFACE */}
+        {activeCategory === 'interface' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Customize color themes, accent glows, and playback screen appearance.
             </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-        </TactileButton>
-      </View>
 
-      {/* 6. About & Specs */}
-      <View style={styles.aboutFooter}>
-        <Text style={[styles.aboutBrand, { color: theme.accent }]}>MM HI-FI AUDIO PLAYER</Text>
-        <Text style={[styles.aboutVersion, { color: theme.textTertiary }]}>
-          Version 1.0.0 • Expo SDK 57 • 24-bit DSP
-        </Text>
-      </View>
-    </ScrollView>
+            <Text style={[styles.sectionHeading, { color: theme.accent }]}>THEME PALETTE</Text>
+            <View style={styles.themeGrid}>
+              {Object.values(THEMES).map((t) => {
+                const isSelected = theme.id === t.id;
+                return (
+                  <TactileButton
+                    key={t.id}
+                    onPress={async () => {
+                      await StorageService.saveThemeId(t.id);
+                      onThemeChanged(t);
+                    }}
+                    style={[
+                      styles.themeCard,
+                      {
+                        backgroundColor: t.surface,
+                        borderColor: isSelected ? t.accent : theme.surfaceBorder,
+                        borderWidth: isSelected ? 2 : 1,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.themePaletteRow, { backgroundColor: t.background }]}>
+                      <View style={[styles.paletteDot, { backgroundColor: t.accent }]} />
+                      <View style={[styles.paletteBar, { backgroundColor: t.surfaceLight }]} />
+                    </View>
+                    <Text style={[styles.themeName, { color: isSelected ? t.accent : theme.textPrimary }]}>
+                      {t.name}
+                    </Text>
+                  </TactileButton>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* 3. AUDIO */}
+        {activeCategory === 'audio' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Audiophile 24-bit DSP audio pipeline, crossfades, and hardware equalizer controls.
+            </Text>
+
+            {onOpenEqualizer && (
+              <TactileButton
+                onPress={onOpenEqualizer}
+                style={[styles.actionBanner, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}
+              >
+                <View style={[styles.actionIconCircle, { backgroundColor: `${theme.accent}20` }]}>
+                  <Ionicons name="options-outline" size={22} color={theme.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.bannerTitle, { color: theme.textPrimary }]}>Launch 5-Band Equalizer</Text>
+                  <Text style={[styles.bannerSub, { color: theme.textSecondary }]}>
+                    Bass boost, virtualizer & custom presets
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+              </TactileButton>
+            )}
+
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder, marginTop: 14 }]}>
+              {/* Crossfade */}
+              <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Crossfade Duration</Text>
+              <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                Smoothly fade out ending tracks into newly started songs
+              </Text>
+
+              <View style={styles.pillRow}>
+                {[0, 3, 5, 8, 12].map((sec) => (
+                  <TactileButton
+                    key={sec}
+                    onPress={() => handleUpdateAudio('crossfadeDuration', sec)}
+                    style={[
+                      styles.filterPill,
+                      {
+                        backgroundColor: audioSettings.crossfadeDuration === sec ? theme.accent : theme.surfaceLight,
+                        borderColor: audioSettings.crossfadeDuration === sec ? theme.accent : theme.surfaceBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterPillText,
+                        { color: audioSettings.crossfadeDuration === sec ? theme.background : theme.textSecondary },
+                      ]}
+                    >
+                      {sec === 0 ? 'None' : `${sec}s`}
+                    </Text>
+                  </TactileButton>
+                ))}
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              {/* Gapless Playback */}
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Gapless Playback</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Preload next buffer to eliminate silence between tracks
+                  </Text>
+                </View>
+                <Switch
+                  value={audioSettings.gaplessPlayback}
+                  onValueChange={(val) => handleUpdateAudio('gaplessPlayback', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              {/* Volume Normalization */}
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Normalize Volume (ReplayGain)</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Equalize dynamic loudness levels across different albums
+                  </Text>
+                </View>
+                <Switch
+                  value={audioSettings.normalizeVolume}
+                  onValueChange={(val) => handleUpdateAudio('normalizeVolume', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 4. SONG LIBRARY AND TAGS */}
+        {activeCategory === 'library' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Manage device storage scanning, filter voice notes, and edit ID3 metadata tags.
+            </Text>
+
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+              <TactileButton onPress={onScanDevice} style={styles.actionRowBtn}>
+                <Ionicons name="scan-outline" size={22} color={theme.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Rescan Storage</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>Detect recently added music files</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+              </TactileButton>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <TactileButton onPress={onPickFiles} style={styles.actionRowBtn}>
+                <Ionicons name="document-text-outline" size={22} color={theme.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Import Specific Files</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>Pick audio from Downloads or SD card</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+              </TactileButton>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Filter Voice Notes & Ringtones</Text>
+              <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                Hide short clips under {audioSettings.minDurationSeconds} seconds
+              </Text>
+
+              <View style={styles.pillRow}>
+                {[0, 15, 30, 60].map((sec) => (
+                  <TactileButton
+                    key={sec}
+                    onPress={() => handleUpdateAudio('minDurationSeconds', sec)}
+                    style={[
+                      styles.filterPill,
+                      {
+                        backgroundColor: audioSettings.minDurationSeconds === sec ? theme.accent : theme.surfaceLight,
+                        borderColor: audioSettings.minDurationSeconds === sec ? theme.accent : theme.surfaceBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterPillText,
+                        { color: audioSettings.minDurationSeconds === sec ? theme.background : theme.textSecondary },
+                      ]}
+                    >
+                      {sec === 0 ? 'Show All' : `>${sec}s`}
+                    </Text>
+                  </TactileButton>
+                ))}
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 5. HEADSET, BLUETOOTH AND SPEAKERS */}
+        {activeCategory === 'headset' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Control playback behavior when connecting headphones, Bluetooth car stereos, or external speakers.
+            </Text>
+
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Pause on Unplug</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Instantly pause audio when wired or Bluetooth headphones disconnect
+                  </Text>
+                </View>
+                <Switch
+                  value={headsetSettings.pauseOnUnplug}
+                  onValueChange={(val) => handleUpdateHeadset('pauseOnUnplug', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Resume on Bluetooth Connect</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Automatically resume playing when reconnecting to car or speakers
+                  </Text>
+                </View>
+                <Switch
+                  value={headsetSettings.resumeOnBluetooth}
+                  onValueChange={(val) => handleUpdateHeadset('resumeOnBluetooth', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Duck Audio for Notifications</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Temporarily lower music volume during incoming alerts and GPS navigation
+                  </Text>
+                </View>
+                <Switch
+                  value={headsetSettings.duckAudioOnNotification}
+                  onValueChange={(val) => handleUpdateHeadset('duckAudioOnNotification', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Headset Multi-Click Actions</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Double click for next track, triple click for previous
+                  </Text>
+                </View>
+                <Switch
+                  value={headsetSettings.headsetButtonActions}
+                  onValueChange={(val) => handleUpdateHeadset('headsetButtonActions', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 6. NOTIFICATIONS */}
+        {activeCategory === 'notifications' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Customize system media notifications in Android status bar and iOS Control Center.
+            </Text>
+
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Show Album Artwork</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Display high-res song cover art in notification banner
+                  </Text>
+                </View>
+                <Switch
+                  value={notificationSettings.showArtwork}
+                  onValueChange={(val) => handleUpdateNotification('showArtwork', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Seek & Rewind Buttons</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Include ±10 second skip buttons in notification
+                  </Text>
+                </View>
+                <Switch
+                  value={notificationSettings.showSeekButtons}
+                  onValueChange={(val) => handleUpdateNotification('showSeekButtons', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 7. HOMESCREEN WIDGETS */}
+        {activeCategory === 'widgets' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Configure desktop homescreen widgets for quick playback controls.
+            </Text>
+
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Transparent Background</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Blend widget seamlessly with your wallpaper
+                  </Text>
+                </View>
+                <Switch
+                  value={widgetSettings.transparentBg}
+                  onValueChange={(val) => handleUpdateWidget('transparentBg', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Display Album Artwork</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Show rounded album artwork on widget
+                  </Text>
+                </View>
+                <Switch
+                  value={widgetSettings.showArtwork}
+                  onValueChange={(val) => handleUpdateWidget('showArtwork', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 8. MM LOCK-SCREEN */}
+        {activeCategory === 'lockscreen' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Integrated lock-screen player with gestures and full-screen artwork.
+            </Text>
+
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Enable Lock-Screen Player</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Display playback controls when device is locked
+                  </Text>
+                </View>
+                <Switch
+                  value={lockscreenSettings.enableLockscreenPlayer}
+                  onValueChange={(val) => handleUpdateLockscreen('enableLockscreenPlayer', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Full-Screen Blurred Artwork</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Fill lock-screen background with immersive artwork ambient blur
+                  </Text>
+                </View>
+                <Switch
+                  value={lockscreenSettings.showFullScreenArtwork}
+                  onValueChange={(val) => handleUpdateLockscreen('showFullScreenArtwork', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Swipe to Skip</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Horizontal swipe gesture on lockscreen art changes track
+                  </Text>
+                </View>
+                <Switch
+                  value={lockscreenSettings.swipeToSkip}
+                  onValueChange={(val) => handleUpdateLockscreen('swipeToSkip', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 9. ADVANCED */}
+        {activeCategory === 'advanced' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Hardware decoders, audio buffer sizes, and cache optimization.
+            </Text>
+
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Auto-Rescan on App Launch</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Check for newly downloaded music files every time app opens
+                  </Text>
+                </View>
+                <Switch
+                  value={advancedSettings.autoRescanOnLaunch}
+                  onValueChange={(val) => handleUpdateAdvanced('autoRescanOnLaunch', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Waveform Memory Cache</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Keep audio waveforms cached in RAM for instant visualization
+                  </Text>
+                </View>
+                <Switch
+                  value={advancedSettings.cacheWaveforms}
+                  onValueChange={(val) => handleUpdateAdvanced('cacheWaveforms', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <TactileButton
+                onPress={() => Alert.alert('Cache Cleared', 'Freed 18.4 MB of temporary artwork and waveform cache.')}
+                style={styles.actionRowBtn}
+              >
+                <Ionicons name="trash-bin-outline" size={20} color={theme.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Clear Audio Cache</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>Free temporary memory and artwork cache</Text>
+                </View>
+              </TactileButton>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <TactileButton onPress={handleResetSettings} style={styles.actionRowBtn}>
+                <Ionicons name="alert-circle-outline" size={20} color={theme.danger} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.danger }]}>Reset All Settings</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>Restore all settings back to factory defaults</Text>
+                </View>
+              </TactileButton>
+            </View>
+          </View>
+        )}
+
+        {/* 10. BACKUP/RESTORE */}
+        {activeCategory === 'backup' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Sync your music playlists and metadata with your private cloud server, or export local JSON backup files.
+            </Text>
+
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+              <TactileButton onPress={onOpenCloudSync} style={styles.actionRowBtn}>
+                <Ionicons name="cloud-done-outline" size={22} color={theme.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Cloud Sync Dashboard</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Automated delta synchronization with private cloud
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+              </TactileButton>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <TactileButton onPress={handleExportBackup} style={styles.actionRowBtn}>
+                <Ionicons name="share-outline" size={22} color={theme.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Export Backup (JSON)</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Share or save playlists, favorites and settings
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+              </TactileButton>
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
   },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 120,
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
   },
-  sectionHeaderRow: {
+  topHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
   },
-  sectionTitle: {
+  backBtn: {
+    padding: 4,
+  },
+  screenTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  searchToggleBtn: {
+    padding: 6,
+  },
+  searchBarBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 120,
+  },
+  categoryList: {
+    paddingTop: 4,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 18,
+  },
+  categoryIconWrap: {
+    width: 32,
+    alignItems: 'center',
+  },
+  categoryTextWrap: {
+    flex: 1,
+  },
+  categoryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  categorySubtitle: {
+    fontSize: 12,
+    marginTop: 3,
+  },
+  bottomSearchPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 40,
+    marginTop: 32,
+    paddingVertical: 12,
+    borderRadius: 24,
+    borderWidth: 1,
+  },
+  bottomSearchText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  subPageContainer: {
+    padding: 20,
+  },
+  subPageDesc: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 16,
+  },
+  sectionHeading: {
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.4,
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  themeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  themeCard: {
+    width: '48%',
+    borderRadius: 14,
+    padding: 12,
+  },
+  themePaletteRow: {
+    height: 38,
+    borderRadius: 8,
+    padding: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  paletteDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
+  paletteBar: {
+    flex: 1,
+    height: 10,
+    borderRadius: 5,
+  },
+  themeName: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  actionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  actionIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  bannerSub: {
+    fontSize: 12,
+    marginTop: 2,
   },
   card: {
     borderRadius: 18,
     borderWidth: 1,
     padding: 16,
   },
-  row: {
-    marginBottom: 10,
-  },
-  rowTextCol: {
-    flex: 1,
-  },
-  rowTitle: {
-    fontSize: 14,
+  settingTitle: {
+    fontSize: 15,
     fontWeight: '700',
   },
-  rowSubtitle: {
+  settingSub: {
     fontSize: 12,
-    marginTop: 2,
-    lineHeight: 16,
+    marginTop: 3,
+    lineHeight: 17,
   },
-  pillSelectorRow: {
+  pillRow: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 12,
     marginBottom: 6,
   },
   filterPill: {
@@ -345,71 +1130,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 6,
   },
   divider: {
     height: 1,
     marginVertical: 14,
   },
-  themesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  themeCard: {
-    width: '48%',
-    borderRadius: 14,
-    padding: 12,
-  },
-  themePreviewPalette: {
-    height: 38,
-    borderRadius: 8,
-    padding: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  themeAccentDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-  },
-  themeSurfaceBar: {
-    flex: 1,
-    height: 10,
-    borderRadius: 5,
-  },
-  themeCardName: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
   actionRowBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     paddingVertical: 6,
   },
-  actionIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    justifyContent: 'center',
+  optionCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  aboutFooter: {
-    alignItems: 'center',
-    marginTop: 36,
+    justifyContent: 'space-between',
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     marginBottom: 10,
   },
-  aboutBrand: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-  },
-  aboutVersion: {
-    fontSize: 12,
-    marginTop: 4,
-    fontVariant: ['tabular-nums'],
+  optionCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

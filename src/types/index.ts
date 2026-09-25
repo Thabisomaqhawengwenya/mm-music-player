@@ -98,3 +98,35 @@ export interface AppTheme {
   danger: string;
   success: string;
 }
+
+export interface HeadsetSettings {
+  pauseOnUnplug: boolean;
+  resumeOnBluetooth: boolean;
+  duckAudioOnNotification: boolean;
+  headsetButtonActions: boolean;
+}
+
+export interface NotificationSettings {
+  showArtwork: boolean;
+  compactStyle: boolean;
+  showSeekButtons: boolean;
+}
+
+export interface LockscreenSettings {
+  enableLockscreenPlayer: boolean;
+  showFullScreenArtwork: boolean;
+  swipeToSkip: boolean;
+}
+
+export interface AdvancedSettings {
+  bufferSize: 'low' | 'normal' | 'high';
+  autoRescanOnLaunch: boolean;
+  cacheWaveforms: boolean;
+  logLevel: 'error' | 'debug' | 'none';
+}
+
+export interface WidgetSettings {
+  style: 'compact' | 'standard' | 'expanded';
+  transparentBg: boolean;
+  showArtwork: boolean;
+}

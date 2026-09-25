@@ -1,5 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Playlist, Track, EqualizerPreset } from '../types';
+import {
+  Playlist,
+  Track,
+  EqualizerPreset,
+  HeadsetSettings,
+  NotificationSettings,
+  LockscreenSettings,
+  AdvancedSettings,
+  WidgetSettings,
+} from '../types';
 
 const STORAGE_KEYS = {
   PLAYLISTS: '@mm_music_playlists',
@@ -10,6 +19,12 @@ const STORAGE_KEYS = {
   RECENTLY_PLAYED: '@mm_music_recently_played',
   CUSTOM_TRACKS: '@mm_music_custom_tracks',
   AUDIO_SETTINGS: '@mm_music_audio_settings',
+  LANGUAGE: '@mm_music_language',
+  HEADSET_SETTINGS: '@mm_music_headset_settings',
+  NOTIFICATION_SETTINGS: '@mm_music_notification_settings',
+  LOCKSCREEN_SETTINGS: '@mm_music_lockscreen_settings',
+  ADVANCED_SETTINGS: '@mm_music_advanced_settings',
+  WIDGET_SETTINGS: '@mm_music_widget_settings',
 };
 
 export const defaultAudioSettings = {
@@ -18,6 +33,38 @@ export const defaultAudioSettings = {
   excludeFolders: ['WhatsApp Audio', 'Notifications', 'Ringtones'],
   gaplessPlayback: true,
   normalizeVolume: false,
+};
+
+export const defaultHeadsetSettings: HeadsetSettings = {
+  pauseOnUnplug: true,
+  resumeOnBluetooth: true,
+  duckAudioOnNotification: true,
+  headsetButtonActions: true,
+};
+
+export const defaultNotificationSettings: NotificationSettings = {
+  showArtwork: true,
+  compactStyle: false,
+  showSeekButtons: true,
+};
+
+export const defaultLockscreenSettings: LockscreenSettings = {
+  enableLockscreenPlayer: true,
+  showFullScreenArtwork: true,
+  swipeToSkip: true,
+};
+
+export const defaultAdvancedSettings: AdvancedSettings = {
+  bufferSize: 'normal',
+  autoRescanOnLaunch: true,
+  cacheWaveforms: true,
+  logLevel: 'error',
+};
+
+export const defaultWidgetSettings: WidgetSettings = {
+  style: 'standard',
+  transparentBg: true,
+  showArtwork: true,
 };
 
 export const defaultEqPreset: EqualizerPreset = {
@@ -236,5 +283,190 @@ export class StorageService {
     } catch (e) {
       console.warn('Failed to save recently played', e);
     }
+  }
+
+  // --- Language ---
+  static async getLanguage(): Promise<string> {
+    try {
+      const lang = await AsyncStorage.getItem(STORAGE_KEYS.LANGUAGE);
+      return lang || 'en';
+    } catch {
+      return 'en';
+    }
+  }
+
+  static async saveLanguage(lang: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
+    } catch (e) {
+      console.warn('Failed to save language', e);
+    }
+  }
+
+  // --- Headset, Bluetooth & Speakers ---
+  static async getHeadsetSettings(): Promise<HeadsetSettings> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.HEADSET_SETTINGS);
+      return data ? { ...defaultHeadsetSettings, ...JSON.parse(data) } : defaultHeadsetSettings;
+    } catch {
+      return defaultHeadsetSettings;
+    }
+  }
+
+  static async saveHeadsetSettings(settings: Partial<HeadsetSettings>): Promise<void> {
+    try {
+      const current = await this.getHeadsetSettings();
+      const updated = { ...current, ...settings };
+      await AsyncStorage.setItem(STORAGE_KEYS.HEADSET_SETTINGS, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save headset settings', e);
+    }
+  }
+
+  // --- Notifications ---
+  static async getNotificationSettings(): Promise<NotificationSettings> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_SETTINGS);
+      return data ? { ...defaultNotificationSettings, ...JSON.parse(data) } : defaultNotificationSettings;
+    } catch {
+      return defaultNotificationSettings;
+    }
+  }
+
+  static async saveNotificationSettings(settings: Partial<NotificationSettings>): Promise<void> {
+    try {
+      const current = await this.getNotificationSettings();
+      const updated = { ...current, ...settings };
+      await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATION_SETTINGS, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save notification settings', e);
+    }
+  }
+
+  // --- MM Lockscreen ---
+  static async getLockscreenSettings(): Promise<LockscreenSettings> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.LOCKSCREEN_SETTINGS);
+      return data ? { ...defaultLockscreenSettings, ...JSON.parse(data) } : defaultLockscreenSettings;
+    } catch {
+      return defaultLockscreenSettings;
+    }
+  }
+
+  static async saveLockscreenSettings(settings: Partial<LockscreenSettings>): Promise<void> {
+    try {
+      const current = await this.getLockscreenSettings();
+      const updated = { ...current, ...settings };
+      await AsyncStorage.setItem(STORAGE_KEYS.LOCKSCREEN_SETTINGS, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save lockscreen settings', e);
+    }
+  }
+
+  // --- Advanced Settings ---
+  static async getAdvancedSettings(): Promise<AdvancedSettings> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.ADVANCED_SETTINGS);
+      return data ? { ...defaultAdvancedSettings, ...JSON.parse(data) } : defaultAdvancedSettings;
+    } catch {
+      return defaultAdvancedSettings;
+    }
+  }
+
+  static async saveAdvancedSettings(settings: Partial<AdvancedSettings>): Promise<void> {
+    try {
+      const current = await this.getAdvancedSettings();
+      const updated = { ...current, ...settings };
+      await AsyncStorage.setItem(STORAGE_KEYS.ADVANCED_SETTINGS, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save advanced settings', e);
+    }
+  }
+
+  // --- Widgets ---
+  static async getWidgetSettings(): Promise<WidgetSettings> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.WIDGET_SETTINGS);
+      return data ? { ...defaultWidgetSettings, ...JSON.parse(data) } : defaultWidgetSettings;
+    } catch {
+      return defaultWidgetSettings;
+    }
+  }
+
+  static async saveWidgetSettings(settings: Partial<WidgetSettings>): Promise<void> {
+    try {
+      const current = await this.getWidgetSettings();
+      const updated = { ...current, ...settings };
+      await AsyncStorage.setItem(STORAGE_KEYS.WIDGET_SETTINGS, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save widget settings', e);
+    }
+  }
+
+  // --- Backup & Restore ---
+  static async exportBackupData(): Promise<string> {
+    const playlists = await this.getPlaylists();
+    const favorites = await this.getFavorites();
+    const themeId = await this.getThemeId();
+    const audioSettings = await this.getAudioSettings();
+    const headsetSettings = await this.getHeadsetSettings();
+    const lockscreenSettings = await this.getLockscreenSettings();
+    const advancedSettings = await this.getAdvancedSettings();
+
+    const backup = {
+      app: 'MM Music Player',
+      version: '1.0.0',
+      exportDate: new Date().toISOString(),
+      playlists,
+      favorites,
+      themeId,
+      audioSettings,
+      headsetSettings,
+      lockscreenSettings,
+      advancedSettings,
+    };
+    return JSON.stringify(backup, null, 2);
+  }
+
+  static async importBackupData(jsonString: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const backup = JSON.parse(jsonString);
+      if (!backup || typeof backup !== 'object') {
+        return { success: false, message: 'Invalid JSON backup format' };
+      }
+      if (backup.playlists && Array.isArray(backup.playlists)) {
+        await this.savePlaylists(backup.playlists);
+      }
+      if (backup.favorites && Array.isArray(backup.favorites)) {
+        await AsyncStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(backup.favorites));
+      }
+      if (backup.themeId) {
+        await this.saveThemeId(backup.themeId);
+      }
+      if (backup.audioSettings) {
+        await this.saveAudioSettings(backup.audioSettings);
+      }
+      if (backup.headsetSettings) {
+        await this.saveHeadsetSettings(backup.headsetSettings);
+      }
+      if (backup.lockscreenSettings) {
+        await this.saveLockscreenSettings(backup.lockscreenSettings);
+      }
+      if (backup.advancedSettings) {
+        await this.saveAdvancedSettings(backup.advancedSettings);
+      }
+      return { success: true, message: 'Backup successfully restored!' };
+    } catch (e: any) {
+      return { success: false, message: e.message || 'Corrupted backup file' };
+    }
+  }
+
+  static async resetAllSettings(): Promise<void> {
+    await this.saveAudioSettings(defaultAudioSettings);
+    await this.saveHeadsetSettings(defaultHeadsetSettings);
+    await this.saveNotificationSettings(defaultNotificationSettings);
+    await this.saveLockscreenSettings(defaultLockscreenSettings);
+    await this.saveAdvancedSettings(defaultAdvancedSettings);
+    await this.saveWidgetSettings(defaultWidgetSettings);
   }
 }
