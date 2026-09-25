@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   FlatList,
   Alert,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Track, AppTheme } from '../types';
@@ -34,6 +35,9 @@ export const QueueModal: React.FC<QueueModalProps> = ({
   const queue = player.getQueue();
   const currentIndex = player.getCurrentIndex();
 
+  const [isSavingPlaylist, setIsSavingPlaylist] = useState(false);
+  const [playlistName, setPlaylistName] = useState('');
+
   const handlePlayIndex = (index: number) => {
     player.playAtIndex(index);
     onQueueUpdated();
@@ -44,19 +48,26 @@ export const QueueModal: React.FC<QueueModalProps> = ({
     onQueueUpdated();
   };
 
-  const handleSaveAsPlaylist = () => {
-    if (queue.length === 0) return;
-    Alert.prompt(
-      'New Playlist from Queue',
-      'Enter a name for this playlist:',
-      async (name) => {
-        if (name && name.trim()) {
-          const trackIds = queue.map(t => t.id);
-          await StorageService.createPlaylist(name.trim(), trackIds);
-          Alert.alert('Success', `Saved "${name.trim()}" with ${trackIds.length} tracks.`);
-        }
-      }
-    );
+  const handleMoveUp = (index: number) => {
+    player.moveQueueItem(index, index - 1);
+    onQueueUpdated();
+  };
+
+  const handleMoveDown = (index: number) => {
+    player.moveQueueItem(index, index + 1);
+    onQueueUpdated();
+  };
+
+  const handleConfirmSavePlaylist = async () => {
+    if (!playlistName.trim()) {
+      Alert.alert('Required', 'Please enter a name for the playlist.');
+      return;
+    }
+    const trackIds = queue.map((t) => t.id);
+    await StorageService.createPlaylist(playlistName.trim(), trackIds);
+    setIsSavingPlaylist(false);
+    setPlaylistName('');
+    Alert.alert('Success', `Saved "${playlistName.trim()}" with ${trackIds.length} tracks.`);
   };
 
   const renderItem = ({ item, index }: { item: Track; index: number }) => {
@@ -102,6 +113,20 @@ export const QueueModal: React.FC<QueueModalProps> = ({
           </View>
         </TactileButton>
 
+        {/* Reorder Buttons */}
+        <View style={styles.reorderCol}>
+          {index > 0 && (
+            <TactileButton onPress={() => handleMoveUp(index)} style={styles.arrowBtn}>
+              <Ionicons name="chevron-up" size={16} color={theme.textTertiary} />
+            </TactileButton>
+          )}
+          {index < queue.length - 1 && (
+            <TactileButton onPress={() => handleMoveDown(index)} style={styles.arrowBtn}>
+              <Ionicons name="chevron-down" size={16} color={theme.textTertiary} />
+            </TactileButton>
+          )}
+        </View>
+
         <TactileButton
           onPress={() => handleRemove(index)}
           style={styles.removeBtn}
@@ -138,15 +163,42 @@ export const QueueModal: React.FC<QueueModalProps> = ({
         {/* Save as Playlist Action */}
         {queue.length > 0 && (
           <View style={styles.actionBanner}>
-            <TactileButton
-              onPress={handleSaveAsPlaylist}
-              style={[styles.savePlaylistBtn, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}
-            >
-              <Ionicons name="folder-outline" size={18} color={theme.accent} />
-              <Text style={[styles.savePlaylistText, { color: theme.textPrimary }]}>
-                Save Current Queue as Playlist
-              </Text>
-            </TactileButton>
+            {isSavingPlaylist ? (
+              <View
+                style={[
+                  styles.inlineInputRow,
+                  { backgroundColor: theme.surface, borderColor: theme.accent },
+                ]}
+              >
+                <TextInput
+                  value={playlistName}
+                  onChangeText={setPlaylistName}
+                  placeholder="Enter playlist name..."
+                  placeholderTextColor={theme.textTertiary}
+                  style={[styles.inlineTextInput, { color: theme.textPrimary }]}
+                  autoFocus
+                />
+                <TactileButton onPress={handleConfirmSavePlaylist} style={styles.confirmSaveBtn}>
+                  <Ionicons name="checkmark" size={18} color={theme.accent} />
+                </TactileButton>
+                <TactileButton onPress={() => setIsSavingPlaylist(false)} style={styles.confirmSaveBtn}>
+                  <Ionicons name="close" size={18} color={theme.textTertiary} />
+                </TactileButton>
+              </View>
+            ) : (
+              <TactileButton
+                onPress={() => setIsSavingPlaylist(true)}
+                style={[
+                  styles.savePlaylistBtn,
+                  { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
+                ]}
+              >
+                <Ionicons name="folder-outline" size={18} color={theme.accent} />
+                <Text style={[styles.savePlaylistText, { color: theme.textPrimary }]}>
+                  Save Current Queue as Playlist
+                </Text>
+              </TactileButton>
+            )}
           </View>
         )}
 
@@ -258,6 +310,32 @@ const styles = StyleSheet.create({
   trackArtist: {
     fontSize: 12,
     marginTop: 2,
+  },
+  reorderCol: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  arrowBtn: {
+    padding: 3,
+  },
+  inlineInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 8,
+  },
+  inlineTextInput: {
+    flex: 1,
+    height: 38,
+    fontSize: 14,
+    padding: 0,
+  },
+  confirmSaveBtn: {
+    padding: 6,
   },
   removeBtn: {
     padding: 14,

@@ -328,6 +328,25 @@ export class AudioPlayerService {
     this.notify();
   }
 
+  public moveQueueItem(fromIndex: number, toIndex: number) {
+    if (
+      fromIndex < 0 ||
+      fromIndex >= this.queue.length ||
+      toIndex < 0 ||
+      toIndex >= this.queue.length ||
+      fromIndex === toIndex
+    ) {
+      return;
+    }
+    const currentTrack = this.queue[this.currentIndex];
+    const [moved] = this.queue.splice(fromIndex, 1);
+    this.queue.splice(toIndex, 0, moved);
+    if (currentTrack) {
+      this.currentIndex = this.queue.findIndex(t => t.id === currentTrack.id);
+    }
+    this.notify();
+  }
+
   public setVolume(volume: number) {
     const clamped = Math.max(0, Math.min(1, volume));
     this.state.volume = clamped;
