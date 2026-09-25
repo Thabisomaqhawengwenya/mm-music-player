@@ -50,6 +50,7 @@ interface SettingsViewProps {
   onThemeChanged: (newTheme: AppTheme) => void;
   onOpenCloudSync: () => void;
   onOpenTerms: () => void;
+  onOpenPrivacy: () => void;
   onScanDevice: () => void;
   onPickFiles: () => void;
   onSettingsChanged: () => void;
@@ -71,6 +72,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onThemeChanged,
   onOpenCloudSync,
   onOpenTerms,
+  onOpenPrivacy,
   onScanDevice,
   onPickFiles,
   onSettingsChanged,
@@ -334,11 +336,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <TactileButton
                 key={cat.id}
                 onPress={() => {
-                  if (cat.id === 'legal') {
-                    onOpenTerms();
-                  } else {
-                    setActiveCategory(cat.id);
-                  }
+                  setActiveCategory(cat.id);
                 }}
                 style={[
                   styles.categoryRow,
@@ -924,6 +922,50 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
               </TactileButton>
+            </View>
+          </View>
+        )}
+
+        {/* 11. LEGAL & POLICIES */}
+        {activeCategory === 'legal' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Review official legal terms, offline data protections, and app licenses.
+            </Text>
+
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+              <TactileButton onPress={onOpenTerms} style={styles.actionRowBtn}>
+                <Ionicons name="document-text-outline" size={22} color={theme.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Terms & Conditions</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    26-section usage license, copyright & legal notices
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+              </TactileButton>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <TactileButton onPress={onOpenPrivacy} style={styles.actionRowBtn}>
+                <Ionicons name="shield-checkmark-outline" size={22} color={theme.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Privacy Policy</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    27-section offline-first data, storage & permissions policy
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+              </TactileButton>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={{ paddingVertical: 4 }}>
+                <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>MM Audio Engine</Text>
+                <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                  Version 1.0.0 • Expo SDK 57 • 24-bit Offline DSP Engine
+                </Text>
+              </View>
             </View>
           </View>
         )}

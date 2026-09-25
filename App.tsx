@@ -45,6 +45,7 @@ import { TagEditorModal } from './src/components/TagEditorModal';
 import { ThemeSwitcherModal } from './src/components/ThemeSwitcherModal';
 import { CloudSyncModal } from './src/components/CloudSyncModal';
 import { TermsModal } from './src/components/TermsModal';
+import { PrivacyModal } from './src/components/PrivacyModal';
 import { CreateSheetModal } from './src/components/CreateSheetModal';
 import { AIPlaylistModal } from './src/components/AIPlaylistModal';
 import { formatFileSize } from './src/utils/formatters';
@@ -92,6 +93,7 @@ export default function App() {
   const [themeSwitcherOpen, setThemeSwitcherOpen] = useState(false);
   const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiModalMode, setAiModalMode] = useState<'ai' | 'blend' | 'mixed' | 'collab'>('ai');
@@ -629,6 +631,7 @@ export default function App() {
             onThemeChanged={(newTheme) => setTheme(newTheme)}
             onOpenCloudSync={() => setCloudSyncOpen(true)}
             onOpenTerms={() => setTermsOpen(true)}
+            onOpenPrivacy={() => setPrivacyOpen(true)}
             onOpenEqualizer={() => setEqualizerOpen(true)}
             onScanDevice={handleScanDevice}
             onPickFiles={handlePickFiles}
@@ -850,6 +853,13 @@ export default function App() {
       <TermsModal
         visible={termsOpen}
         onClose={() => setTermsOpen(false)}
+        theme={theme}
+      />
+
+      {/* Privacy Policy Modal */}
+      <PrivacyModal
+        visible={privacyOpen}
+        onClose={() => setPrivacyOpen(false)}
         theme={theme}
       />
 
