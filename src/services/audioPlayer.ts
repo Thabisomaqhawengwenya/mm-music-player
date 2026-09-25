@@ -328,6 +328,15 @@ export class AudioPlayerService {
     this.notify();
   }
 
+  public setVolume(volume: number) {
+    const clamped = Math.max(0, Math.min(1, volume));
+    this.state.volume = clamped;
+    if (this.player) {
+      this.player.volume = clamped;
+    }
+    this.notify();
+  }
+
   // --- Sleep Timer ---
   public setSleepTimer(minutes: number | null) {
     if (this.sleepTimerId) {

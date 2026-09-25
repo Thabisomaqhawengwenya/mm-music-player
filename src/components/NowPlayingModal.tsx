@@ -10,6 +10,7 @@ import {
   PanResponder,
   SafeAreaView,
   StatusBar,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Track, PlaybackState, AppTheme } from '../types';
@@ -118,6 +119,54 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [volume, setVolume] = useState(playbackState.volume ?? 1.0);
+
+  // 14 animated visualizer bars
+  const visualizerAnims = useRef(
+    Array.from({ length: 14 }, () => new Animated.Value(0.2))
+  ).current;
+
+  useEffect(() => {
+    let animLoop: Animated.CompositeAnimation | null = null;
+    if (playbackState.isPlaying) {
+      const parallel = visualizerAnims.map((anim) =>
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: Math.random() * 0.8 + 0.2,
+            duration: 180 + Math.random() * 150,
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: Math.random() * 0.3 + 0.15,
+            duration: 180 + Math.random() * 150,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animLoop = Animated.loop(Animated.parallel(parallel));
+      animLoop.start();
+    } else {
+      visualizerAnims.forEach((anim) => {
+        Animated.timing(anim, {
+          toValue: 0.15,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      });
+    }
+
+    return () => {
+      if (animLoop) animLoop.stop();
+    };
+  }, [playbackState.isPlaying]);
+
+  const handleVolumeChange = (newVol: number) => {
+    const clamped = Math.max(0, Math.min(1, newVol));
+    setVolume(clamped);
+    player.setVolume(clamped);
+  };
+
   const speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
   const nextSpeed = () => {
     const currentIdx = speeds.indexOf(playbackState.playbackSpeed);
@@ -152,39 +201,108 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
             </Text>
           </View>
 
-          <TactileButton
-            onPress={() => onOpenTagEditor(track)}
-            style={styles.headerButton}
-          >
-            <Ionicons name="create-outline" size={22} color={theme.textSecondary} />
-          </TactileButton>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {/* Lyrics toggle button */}
+            <TactileButton
+              onPress={() => setShowLyrics(!showLyrics)}
+              style={styles.headerButton}
+            >
+              <Ionicons
+                name={showLyrics ? 'disc-outline' : 'chatbubble-ellipses-outline'}
+                size={22}
+                color={showLyrics ? theme.accent : theme.textSecondary}
+              />
+            </TactileButton>
+
+            {/* Tag Editor button */}
+            <TactileButton
+              onPress={() => onOpenTagEditor(track)}
+              style={styles.headerButton}
+            >
+              <Ionicons name="create-outline" size={22} color={theme.textSecondary} />
+            </TactileButton>
+          </View>
         </View>
 
-        {/* Center Artwork Container */}
+        {/* Center Artwork or Lyrics Container */}
         <View style={styles.artworkSection}>
-          <Animated.View
-            style={[
-              styles.artworkCard,
-              {
-                width: ARTWORK_SIZE,
-                height: ARTWORK_SIZE,
-                borderColor: theme.surfaceBorder,
-                shadowColor: theme.accent,
-                transform: [{ scale: pulseAnim }],
-              },
-            ]}
-          >
-            {track.artwork ? (
-              <Image source={{ uri: track.artwork }} style={styles.artworkImage} />
-            ) : (
-              <View style={[styles.artworkPlaceholder, { backgroundColor: theme.surface }]}>
-                <Ionicons name="disc" size={96} color={theme.accent} />
-                <Text style={[styles.audioPill, { color: theme.accent, borderColor: theme.accent }]}>
-                  HI-RES AUDIO
-                </Text>
+          {showLyrics ? (
+            <View
+              style={[
+                styles.lyricsCard,
+                {
+                  width: ARTWORK_SIZE,
+                  height: ARTWORK_SIZE,
+                  backgroundColor: theme.surface,
+                  borderColor: theme.surfaceBorder,
+                },
+              ]}
+            >
+              <View style={styles.lyricsCardHeader}>
+                <Ionicons name="musical-notes" size={16} color={theme.accent} />
+                <Text style={[styles.lyricsCardTitle, { color: theme.accent }]}>LYRICS</Text>
               </View>
-            )}
-          </Animated.View>
+              <ScrollView style={styles.lyricsScroll} showsVerticalScrollIndicator={false}>
+                {track.lyrics ? (
+                  <Text style={[styles.lyricsText, { color: theme.textPrimary }]}>
+                    {track.lyrics}
+                  </Text>
+                ) : (
+                  <View style={styles.lyricsPlaceholder}>
+                    <Text style={[styles.lyricsLeadLine, { color: theme.textPrimary }]}>
+                      {track.title}
+                    </Text>
+                    <Text style={[styles.lyricsSubLine, { color: theme.textSecondary }]}>
+                      {track.artist}
+                    </Text>
+                    <Text style={[styles.lyricsHint, { color: theme.textTertiary }]}>
+                      Embedded offline ID3 lyrics not detected in this file.{'\n\n'}Tap the pencil icon in the top header to edit tags and attach custom lyrics.
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
+            </View>
+          ) : (
+            <Animated.View
+              style={[
+                styles.artworkCard,
+                {
+                  width: ARTWORK_SIZE,
+                  height: ARTWORK_SIZE,
+                  borderColor: theme.surfaceBorder,
+                  shadowColor: theme.accent,
+                  transform: [{ scale: pulseAnim }],
+                },
+              ]}
+            >
+              {track.artwork ? (
+                <Image source={{ uri: track.artwork }} style={styles.artworkImage} />
+              ) : (
+                <View style={[styles.artworkPlaceholder, { backgroundColor: theme.surface }]}>
+                  <Ionicons name="disc" size={96} color={theme.accent} />
+                  <Text style={[styles.audioPill, { color: theme.accent, borderColor: theme.accent }]}>
+                    HI-RES AUDIO
+                  </Text>
+                </View>
+              )}
+            </Animated.View>
+          )}
+        </View>
+
+        {/* Dynamic Spectrum Audio Visualizer Bars */}
+        <View style={styles.visualizerRow}>
+          {visualizerAnims.map((anim, idx) => (
+            <Animated.View
+              key={idx}
+              style={[
+                styles.visualizerBar,
+                {
+                  backgroundColor: theme.accent,
+                  transform: [{ scaleY: anim }],
+                },
+              ]}
+            />
+          ))}
         </View>
 
         {/* Track Details & Favorite */}
@@ -291,7 +409,7 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
             style={styles.iconControl}
           >
             <Ionicons
-              name={playbackState.repeatMode === 'one' ? 'repeat' : 'repeat'}
+              name="repeat"
               size={22}
               color={playbackState.repeatMode !== 'off' ? theme.accent : theme.textTertiary}
             />
@@ -300,6 +418,36 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
                 <Text style={[styles.repeatBadgeText, { color: theme.background }]}>1</Text>
               </View>
             )}
+          </TactileButton>
+        </View>
+
+        {/* Software Volume Bar */}
+        <View style={styles.volumeRow}>
+          <TactileButton
+            onPress={() => handleVolumeChange(volume === 0 ? 0.8 : 0)}
+            style={styles.volumeIconBtn}
+          >
+            <Ionicons
+              name={volume === 0 ? 'volume-mute' : volume < 0.5 ? 'volume-low' : 'volume-medium'}
+              size={18}
+              color={theme.textTertiary}
+            />
+          </TactileButton>
+
+          <View style={[styles.volumeBarTrack, { backgroundColor: theme.surfaceLight }]}>
+            <View
+              style={[
+                styles.volumeBarProgress,
+                { width: `${volume * 100}%`, backgroundColor: theme.accent },
+              ]}
+            />
+          </View>
+
+          <TactileButton
+            onPress={() => handleVolumeChange(1.0)}
+            style={styles.volumeIconBtn}
+          >
+            <Ionicons name="volume-high" size={18} color={theme.textTertiary} />
           </TactileButton>
         </View>
 
@@ -532,5 +680,86 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 2,
     fontVariant: ['tabular-nums'],
+  },
+  lyricsCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 18,
+    overflow: 'hidden',
+  },
+  lyricsCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  lyricsCardTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+  lyricsScroll: {
+    flex: 1,
+  },
+  lyricsText: {
+    fontSize: 16,
+    lineHeight: 28,
+    fontWeight: '600',
+  },
+  lyricsPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+  },
+  lyricsLeadLine: {
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  lyricsSubLine: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  lyricsHint: {
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginTop: 20,
+    paddingHorizontal: 12,
+  },
+  visualizerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    height: 24,
+    marginVertical: 4,
+  },
+  visualizerBar: {
+    width: 3,
+    height: 22,
+    borderRadius: 1.5,
+  },
+  volumeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 28,
+    gap: 12,
+    marginVertical: 4,
+  },
+  volumeIconBtn: {
+    padding: 4,
+  },
+  volumeBarTrack: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  volumeBarProgress: {
+    height: '100%',
+    borderRadius: 2,
   },
 });

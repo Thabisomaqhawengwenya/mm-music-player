@@ -12,6 +12,9 @@ export interface Track {
   folder?: string;
   size?: number; // in bytes
   isFavorite?: boolean;
+  trackNumber?: number;
+  lyrics?: string;
+  bitrate?: number;
 }
 
 export type RepeatMode = 'off' | 'all' | 'one';
@@ -34,6 +37,41 @@ export interface Playlist {
   trackIds: string[];
   createdAt: number;
   coverUri?: string;
+}
+
+export interface Album {
+  id: string;
+  name: string;
+  artist: string;
+  artwork?: string;
+  year?: string;
+  trackCount: number;
+  totalDuration: number;
+  tracks: Track[];
+}
+
+export interface Artist {
+  name: string;
+  trackCount: number;
+  albumCount: number;
+  artwork?: string;
+  tracks: Track[];
+}
+
+export interface Genre {
+  name: string;
+  trackCount: number;
+  color?: string;
+  icon?: string;
+  tracks: Track[];
+}
+
+export interface AudioSettings {
+  crossfadeDuration: number; // 0 to 12s
+  minDurationSeconds: number; // ignore short clips (e.g. 30s)
+  excludeFolders: string[];
+  gaplessPlayback: boolean;
+  normalizeVolume: boolean;
 }
 
 export interface EqualizerPreset {

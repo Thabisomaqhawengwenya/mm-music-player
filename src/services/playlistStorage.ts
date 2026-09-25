@@ -9,6 +9,15 @@ const STORAGE_KEYS = {
   METADATA_OVERRIDES: '@mm_music_metadata_overrides',
   RECENTLY_PLAYED: '@mm_music_recently_played',
   CUSTOM_TRACKS: '@mm_music_custom_tracks',
+  AUDIO_SETTINGS: '@mm_music_audio_settings',
+};
+
+export const defaultAudioSettings = {
+  crossfadeDuration: 3,
+  minDurationSeconds: 30, // ignore notifications/voice notes under 30s
+  excludeFolders: ['WhatsApp Audio', 'Notifications', 'Ringtones'],
+  gaplessPlayback: true,
+  normalizeVolume: false,
 };
 
 export const defaultEqPreset: EqualizerPreset = {
@@ -57,6 +66,24 @@ export class StorageService {
     playlists.push(newPlaylist);
     await this.savePlaylists(playlists);
     return newPlaylist;
+  }
+
+  static async renamePlaylist(playlistId: string, newName: string): Promise<boolean> {
+    const playlists = await this.getPlaylists();
+    const playlist = playlists.find(p => p.id === playlistId);
+    if (!playlist) return false;
+    playlist.name = newName.trim() || 'Untitled Playlist';
+    await this.savePlaylists(playlists);
+    return true;
+  }
+
+  static async reorderPlaylistTracks(playlistId: string, trackIds: string[]): Promise<boolean> {
+    const playlists = await this.getPlaylists();
+    const playlist = playlists.find(p => p.id === playlistId);
+    if (!playlist) return false;
+    playlist.trackIds = trackIds;
+    await this.savePlaylists(playlists);
+    return true;
   }
 
   static async addTrackToPlaylist(playlistId: string, trackId: string): Promise<boolean> {
@@ -169,6 +196,45 @@ export class StorageService {
       await AsyncStorage.setItem(STORAGE_KEYS.THEME_ID, themeId);
     } catch (e) {
       console.warn('Failed to save theme id', e);
+    }
+  }
+
+  static async getAudioSettings(): Promise<typeof defaultAudioSettings> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.AUDIO_SETTINGS);
+      return data ? { ...defaultAudioSettings, ...JSON.parse(data) } : defaultAudioSettings;
+    } catch {
+      return defaultAudioSettings;
+    }
+  }
+
+  static async saveAudioSettings(settings: Partial<typeof defaultAudioSettings>): Promise<void> {
+    try {
+      const current = await this.getAudioSettings();
+      const updated = { ...current, ...settings };
+      await AsyncStorage.setItem(STORAGE_KEYS.AUDIO_SETTINGS, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save audio settings', e);
+    }
+  }
+
+  static async getRecentlyPlayed(): Promise<string[]> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.RECENTLY_PLAYED);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  static async addRecentlyPlayed(trackId: string): Promise<void> {
+    try {
+      const list = await this.getRecentlyPlayed();
+      const filtered = list.filter(id => id !== trackId);
+      const updated = [trackId, ...filtered].slice(0, 50); // Keep last 50
+      await AsyncStorage.setItem(STORAGE_KEYS.RECENTLY_PLAYED, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save recently played', e);
     }
   }
 }

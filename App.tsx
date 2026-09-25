@@ -12,7 +12,15 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Track, PlaybackState, AppTheme } from './src/types';
+import {
+  Track,
+  Album,
+  Artist,
+  Genre,
+  Playlist,
+  PlaybackState,
+  AppTheme,
+} from './src/types';
 import { THEMES, DEFAULT_THEME } from './src/constants/theme';
 import { StorageScannerService } from './src/services/storageScanner';
 import { AudioPlayerService } from './src/services/audioPlayer';
@@ -25,22 +33,39 @@ import { EqualizerModal } from './src/components/EqualizerModal';
 import { SleepTimerModal } from './src/components/SleepTimerModal';
 import { QueueModal } from './src/components/QueueModal';
 import { PlaylistModal } from './src/components/PlaylistModal';
+import { PlaylistDetailModal } from './src/components/PlaylistDetailModal';
+import { AlbumDetailModal } from './src/components/AlbumDetailModal';
+import { ArtistDetailModal } from './src/components/ArtistDetailModal';
+import { GenreDetailModal } from './src/components/GenreDetailModal';
+import { AlbumsView } from './src/components/AlbumsView';
+import { GenresView } from './src/components/GenresView';
+import { SearchHubView } from './src/components/SearchHubView';
+import { SettingsView } from './src/components/SettingsView';
 import { TagEditorModal } from './src/components/TagEditorModal';
 import { ThemeSwitcherModal } from './src/components/ThemeSwitcherModal';
 import { CloudSyncModal } from './src/components/CloudSyncModal';
 import { formatFileSize } from './src/utils/formatters';
 
-type TabKey = 'tracks' | 'folders' | 'artists' | 'favorites';
+type MainNavTab = 'library' | 'playlists' | 'search' | 'settings';
+type LibrarySubTab = 'tracks' | 'albums' | 'artists' | 'folders' | 'genres' | 'favorites';
 
 export default function App() {
   const [theme, setTheme] = useState<AppTheme>(DEFAULT_THEME);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<TabKey>('tracks');
+
+  // Navigation state
+  const [mainTab, setMainTab] = useState<MainNavTab>('library');
+  const [librarySubTab, setLibrarySubTab] = useState<LibrarySubTab>('tracks');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
+
+  // Detail modals
+  const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
+  const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
+  const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
 
   // Playback state
   const [playbackState, setPlaybackState] = useState<PlaybackState>({
@@ -55,7 +80,7 @@ export default function App() {
     volume: 1.0,
   });
 
-  // Modals state
+  // Action modals
   const [nowPlayingOpen, setNowPlayingOpen] = useState(false);
   const [equalizerOpen, setEqualizerOpen] = useState(false);
   const [sleepTimerOpen, setSleepTimerOpen] = useState(false);
@@ -74,29 +99,41 @@ export default function App() {
       if (THEMES[id]) setTheme(THEMES[id]);
     });
 
-    // 2. Subscribe to player updates
+    // 2. Subscribe to audio player state
     const unsubscribe = player.subscribe((state) => {
       setPlaybackState(state);
     });
 
-    // 3. Scan storage on launch
-    loadInitialTracks();
+    // 3. Scan library and load playlists
+    loadInitialData();
 
     return () => {
       unsubscribe();
     };
   }, []);
 
-  const loadInitialTracks = async () => {
+  const loadInitialData = async () => {
     setIsLoading(true);
     const result = await StorageScannerService.scanLocalStorage();
     setTracks(result.tracks);
     setPermissionGranted(result.permissionGranted);
+
+    const savedPlaylists = await StorageService.getPlaylists();
+    setPlaylists(savedPlaylists);
+
     setIsLoading(false);
 
-    // If player has no queue yet, load all tracks into queue
     if (result.tracks.length > 0 && player.getQueue().length === 0) {
       player.setQueue(result.tracks, 0);
+    }
+  };
+
+  const refreshPlaylists = async () => {
+    const list = await StorageService.getPlaylists();
+    setPlaylists(list);
+    if (selectedPlaylist) {
+      const updated = list.find((p) => p.id === selectedPlaylist.id);
+      setSelectedPlaylist(updated || null);
     }
   };
 
@@ -113,11 +150,11 @@ export default function App() {
 
     if (!result.permissionGranted) {
       Alert.alert(
-        'Storage Permission Required',
-        'To scan all local MP3/audio files on Android/iOS, please allow storage permissions in device settings, or use the "Pick Audio Files" button.'
+        'Storage Permission',
+        'Please allow audio permissions in device settings, or pick individual files with the Document button.'
       );
     } else {
-      Alert.alert('Scan Complete', `Found and loaded ${result.tracks.length} audio tracks.`);
+      Alert.alert('Scan Complete', `Loaded ${result.tracks.length} offline audio tracks.`);
     }
   };
 
@@ -126,7 +163,7 @@ export default function App() {
     if (picked.length > 0) {
       const refreshed = await StorageScannerService.scanLocalStorage();
       setTracks(refreshed.tracks);
-      Alert.alert('Imported', `Successfully imported ${picked.length} audio tracks.`);
+      Alert.alert('Imported', `Imported ${picked.length} audio tracks.`);
     }
   };
 
@@ -139,6 +176,16 @@ export default function App() {
 
   const handlePlayTrack = (track: Track, contextList: Track[]) => {
     player.playTrack(track, contextList);
+  };
+
+  const handlePlayAll = (list: Track[], shuffle: boolean) => {
+    if (list.length === 0) return;
+    if (shuffle) {
+      const shuffled = [...list].sort(() => Math.random() - 0.5);
+      player.setQueue(shuffled, 0);
+    } else {
+      player.setQueue(list, 0);
+    }
   };
 
   const handlePlayNext = (track: Track) => {
@@ -167,31 +214,10 @@ export default function App() {
     }
   };
 
-  // Filtered tracks
-  const filteredTracks = useMemo(() => {
-    let list = tracks;
-
-    if (activeTab === 'favorites') {
-      list = list.filter((t) => t.isFavorite);
-    } else if (activeTab === 'folders' && selectedFolder) {
-      list = list.filter((t) => (t.folder || 'Unknown Folder') === selectedFolder);
-    } else if (activeTab === 'artists' && selectedArtist) {
-      list = list.filter((t) => t.artist === selectedArtist);
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter(
-        (t) =>
-          t.title.toLowerCase().includes(q) ||
-          t.artist.toLowerCase().includes(q) ||
-          t.album.toLowerCase().includes(q) ||
-          (t.folder && t.folder.toLowerCase().includes(q))
-      );
-    }
-
-    return list;
-  }, [tracks, activeTab, selectedFolder, selectedArtist, searchQuery]);
+  // Grouped collections
+  const albums = useMemo(() => StorageScannerService.groupTracksByAlbum(tracks), [tracks]);
+  const artists = useMemo(() => StorageScannerService.groupTracksByArtist(tracks), [tracks]);
+  const genres = useMemo(() => StorageScannerService.groupTracksByGenre(tracks), [tracks]);
 
   // Grouped folders
   const folders = useMemo(() => {
@@ -205,17 +231,17 @@ export default function App() {
     return Object.entries(map).map(([name, data]) => ({ name, ...data }));
   }, [tracks]);
 
-  // Grouped artists
-  const artists = useMemo(() => {
-    const map: Record<string, number> = {};
-    tracks.forEach((t) => {
-      const a = t.artist || 'Unknown Artist';
-      map[a] = (map[a] || 0) + 1;
-    });
-    return Object.entries(map).map(([name, count]) => ({ name, count }));
-  }, [tracks]);
+  // Filtered tracks for Library view
+  const libraryTracks = useMemo(() => {
+    if (librarySubTab === 'favorites') {
+      return tracks.filter((t) => t.isFavorite);
+    }
+    if (librarySubTab === 'folders' && selectedFolder) {
+      return tracks.filter((t) => (t.folder || 'Unknown Folder') === selectedFolder);
+    }
+    return tracks;
+  }, [tracks, librarySubTab, selectedFolder]);
 
-  // Total library stats
   const totalDurationMinutes = Math.round(
     tracks.reduce((acc, t) => acc + (t.duration || 0), 0) / 60
   );
@@ -224,19 +250,25 @@ export default function App() {
     <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
       <StatusBar barStyle="light-content" />
 
-      {/* Top Header */}
+      {/* Main Screen Header */}
       <View style={styles.header}>
         <View>
           <Text style={[styles.brandEyebrow, { color: theme.accent }]}>
-            OFFLINE HI-FI AUDIO
+            HI-FI OFFLINE AUDIO
           </Text>
           <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
-            Local Music
+            {mainTab === 'library'
+              ? 'Local Music'
+              : mainTab === 'playlists'
+              ? 'Playlists'
+              : mainTab === 'search'
+              ? 'Search Library'
+              : 'Settings & DSP'}
           </Text>
         </View>
 
         <View style={styles.headerButtonsRow}>
-          {/* Cloud Sync & Backup button */}
+          {/* Cloud Sync shortcut */}
           <TactileButton
             onPress={() => setCloudSyncOpen(true)}
             style={[styles.headerIconBtn, { backgroundColor: theme.surfaceLight }]}
@@ -244,15 +276,7 @@ export default function App() {
             <Ionicons name="cloud-outline" size={20} color={theme.accent} />
           </TactileButton>
 
-          {/* Pick file button */}
-          <TactileButton
-            onPress={handlePickFiles}
-            style={[styles.headerIconBtn, { backgroundColor: theme.surfaceLight }]}
-          >
-            <Ionicons name="document-text-outline" size={20} color={theme.textPrimary} />
-          </TactileButton>
-
-          {/* Scan storage button */}
+          {/* Quick Rescan */}
           <TactileButton
             onPress={handleScanDevice}
             style={[styles.headerIconBtn, { backgroundColor: theme.surfaceLight }]}
@@ -260,7 +284,7 @@ export default function App() {
             <Ionicons name="scan-outline" size={20} color={theme.textPrimary} />
           </TactileButton>
 
-          {/* Theme switcher button */}
+          {/* Theme Palette */}
           <TactileButton
             onPress={() => setThemeSwitcherOpen(true)}
             style={[styles.headerIconBtn, { backgroundColor: theme.surfaceLight }]}
@@ -270,274 +294,298 @@ export default function App() {
         </View>
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View
-          style={[
-            styles.searchBar,
-            { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
-          ]}
-        >
-          <Ionicons name="search" size={18} color={theme.textTertiary} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search tracks, artists, albums..."
-            placeholderTextColor={theme.textTertiary}
-            style={[styles.searchInput, { color: theme.textPrimary }]}
-          />
-          {searchQuery.length > 0 && (
-            <TactileButton onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={theme.textTertiary} />
-            </TactileButton>
-          )}
-        </View>
-      </View>
-
-      {/* Navigation Tabs */}
-      <View style={styles.tabsRow}>
-        <TactileButton
-          onPress={() => {
-            setActiveTab('tracks');
-            setSelectedFolder(null);
-            setSelectedArtist(null);
-          }}
-          style={[
-            styles.tabItem,
-            activeTab === 'tracks' && { borderBottomColor: theme.accent, borderBottomWidth: 2 },
-          ]}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: activeTab === 'tracks' ? theme.accent : theme.textSecondary },
-            ]}
-          >
-            Tracks
-          </Text>
-        </TactileButton>
-
-        <TactileButton
-          onPress={() => {
-            setActiveTab('folders');
-            setSelectedFolder(null);
-          }}
-          style={[
-            styles.tabItem,
-            activeTab === 'folders' && { borderBottomColor: theme.accent, borderBottomWidth: 2 },
-          ]}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: activeTab === 'folders' ? theme.accent : theme.textSecondary },
-            ]}
-          >
-            Folders
-          </Text>
-        </TactileButton>
-
-        <TactileButton
-          onPress={() => {
-            setActiveTab('artists');
-            setSelectedArtist(null);
-          }}
-          style={[
-            styles.tabItem,
-            activeTab === 'artists' && { borderBottomColor: theme.accent, borderBottomWidth: 2 },
-          ]}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: activeTab === 'artists' ? theme.accent : theme.textSecondary },
-            ]}
-          >
-            Artists
-          </Text>
-        </TactileButton>
-
-        <TactileButton
-          onPress={() => {
-            setActiveTab('favorites');
-            setSelectedFolder(null);
-            setSelectedArtist(null);
-          }}
-          style={[
-            styles.tabItem,
-            activeTab === 'favorites' && { borderBottomColor: theme.accent, borderBottomWidth: 2 },
-          ]}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: activeTab === 'favorites' ? theme.accent : theme.textSecondary },
-            ]}
-          >
-            Favorites
-          </Text>
-        </TactileButton>
-
-        <TactileButton
-          onPress={() => {
-            setAddTrackToPlaylistTarget(null);
-            setPlaylistsOpen(true);
-          }}
-          style={styles.tabItem}
-        >
-          <Text style={[styles.tabText, { color: theme.textSecondary }]}>
-            Playlists ↗
-          </Text>
-        </TactileButton>
-      </View>
-
-      {/* Breadcrumb if inside a selected folder or artist */}
-      {(selectedFolder || selectedArtist) && (
-        <View style={styles.breadcrumbBar}>
-          <TactileButton
-            onPress={() => {
-              setSelectedFolder(null);
-              setSelectedArtist(null);
-            }}
-            style={styles.breadcrumbBtn}
-          >
-            <Ionicons name="arrow-back" size={16} color={theme.accent} />
-            <Text style={[styles.breadcrumbText, { color: theme.accent }]}>
-              Back to {selectedFolder ? 'Folders' : 'Artists'}
+      {/* Active Tab Screen Content */}
+      <View style={styles.mainContainer}>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.accent} />
+            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+              Scanning storage & audio files...
             </Text>
-          </TactileButton>
-          <Text style={[styles.breadcrumbCurrent, { color: theme.textPrimary }]} numberOfLines={1}>
-            {selectedFolder || selectedArtist}
-          </Text>
-        </View>
-      )}
+          </View>
+        ) : mainTab === 'library' ? (
+          /* LIBRARY TAB */
+          <View style={{ flex: 1 }}>
+            {/* Library Sub-Tabs Ribbon */}
+            <View style={styles.subTabsContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.subTabsRow}
+              >
+                {[
+                  { key: 'tracks', label: 'Tracks' },
+                  { key: 'albums', label: 'Albums' },
+                  { key: 'artists', label: 'Artists' },
+                  { key: 'folders', label: 'Folders' },
+                  { key: 'genres', label: 'Genres' },
+                  { key: 'favorites', label: 'Favorites' },
+                ].map((item) => {
+                  const isActive = librarySubTab === item.key;
+                  return (
+                    <TactileButton
+                      key={item.key}
+                      onPress={() => {
+                        setLibrarySubTab(item.key as LibrarySubTab);
+                        setSelectedFolder(null);
+                      }}
+                      style={[
+                        styles.subTabItem,
+                        isActive && { borderBottomColor: theme.accent, borderBottomWidth: 2 },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.subTabText,
+                          { color: isActive ? theme.accent : theme.textSecondary },
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </TactileButton>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
-      {/* Library Stats Ribbon */}
-      <View style={styles.statsBar}>
-        <Text style={[styles.statsText, { color: theme.textTertiary }]}>
-          {tracks.length} tracks • {totalDurationMinutes} mins total
-        </Text>
-        <TactileButton
-          onPress={() => player.setQueue(filteredTracks, 0)}
-          style={styles.shuffleAllBtn}
-        >
-          <Ionicons name="shuffle" size={14} color={theme.accent} />
-          <Text style={[styles.shuffleAllText, { color: theme.accent }]}>Shuffle All</Text>
-        </TactileButton>
-      </View>
-
-      {/* Content Area */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.accent} />
-          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-            Scanning local storage...
-          </Text>
-        </View>
-      ) : activeTab === 'folders' && !selectedFolder ? (
-        /* Folders List */
-        <FlatList
-          data={folders}
-          keyExtractor={(item) => item.name}
-          contentContainerStyle={styles.listContainer}
-          renderItem={({ item }) => (
-            <TactileButton
-              onPress={() => setSelectedFolder(item.name)}
-              style={[
-                styles.folderCard,
-                { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
-              ]}
-            >
-              <View style={[styles.folderIconBox, { backgroundColor: theme.surfaceLight }]}>
-                <Ionicons name="folder" size={26} color={theme.accent} />
-              </View>
-              <View style={styles.folderInfoCol}>
-                <Text style={[styles.folderTitle, { color: theme.textPrimary }]} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={[styles.folderMeta, { color: theme.textSecondary }]}>
-                  {item.count} {item.count === 1 ? 'track' : 'tracks'} {item.size > 0 ? `• ${formatFileSize(item.size)}` : ''}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-            </TactileButton>
-          )}
-        />
-      ) : activeTab === 'artists' && !selectedArtist ? (
-        /* Artists List */
-        <FlatList
-          data={artists}
-          keyExtractor={(item) => item.name}
-          contentContainerStyle={styles.listContainer}
-          renderItem={({ item }) => (
-            <TactileButton
-              onPress={() => setSelectedArtist(item.name)}
-              style={[
-                styles.folderCard,
-                { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
-              ]}
-            >
-              <View style={[styles.folderIconBox, { backgroundColor: theme.surfaceLight }]}>
-                <Ionicons name="person" size={24} color={theme.accent} />
-              </View>
-              <View style={styles.folderInfoCol}>
-                <Text style={[styles.folderTitle, { color: theme.textPrimary }]} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={[styles.folderMeta, { color: theme.textSecondary }]}>
-                  {item.count} {item.count === 1 ? 'track' : 'tracks'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-            </TactileButton>
-          )}
-        />
-      ) : (
-        /* Tracks List */
-        <FlatList
-          data={filteredTracks}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          renderItem={({ item, index }) => (
-            <TrackListItem
-              track={item}
-              index={index}
-              isCurrent={playbackState.currentTrack?.id === item.id}
-              isPlaying={playbackState.isPlaying}
-              theme={theme}
-              onPress={() => handlePlayTrack(item, filteredTracks)}
-              onToggleFavorite={handleToggleFavorite}
-              onPlayNext={handlePlayNext}
-              onAddToQueue={handleAddToQueue}
-              onAddToPlaylist={handleAddToPlaylist}
-              onEditTags={handleEditTags}
-            />
-          )}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="musical-notes-outline" size={54} color={theme.textTertiary} />
-              <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
-                {searchQuery ? 'No matching audio tracks' : 'No local music found'}
-              </Text>
-              <Text style={[styles.emptySubtitle, { color: theme.textTertiary }]}>
-                {searchQuery
-                  ? 'Try a different query or clear the search'
-                  : 'Tap "Pick Audio Files" or grant storage permissions to scan your device.'}
-              </Text>
-              {!searchQuery && (
+            {/* Breadcrumb if inside a selected folder */}
+            {selectedFolder && (
+              <View style={styles.breadcrumbBar}>
                 <TactileButton
-                  onPress={handlePickFiles}
-                  style={[styles.emptyPickBtn, { backgroundColor: theme.accent }]}
+                  onPress={() => setSelectedFolder(null)}
+                  style={styles.breadcrumbBtn}
                 >
-                  <Text style={[styles.emptyPickBtnText, { color: theme.background }]}>
-                    Pick Audio Files
+                  <Ionicons name="arrow-back" size={16} color={theme.accent} />
+                  <Text style={[styles.breadcrumbText, { color: theme.accent }]}>
+                    All Folders
                   </Text>
                 </TactileButton>
-              )}
+                <Text style={[styles.breadcrumbCurrent, { color: theme.textPrimary }]} numberOfLines={1}>
+                  {selectedFolder}
+                </Text>
+              </View>
+            )}
+
+            {/* Library Stats / Quick Shuffle Bar */}
+            <View style={styles.statsBar}>
+              <Text style={[styles.statsText, { color: theme.textTertiary }]}>
+                {tracks.length} tracks • {totalDurationMinutes} mins total
+              </Text>
+              <TactileButton
+                onPress={() => handlePlayAll(libraryTracks, true)}
+                style={styles.shuffleAllBtn}
+              >
+                <Ionicons name="shuffle" size={14} color={theme.accent} />
+                <Text style={[styles.shuffleAllText, { color: theme.accent }]}>Shuffle All</Text>
+              </TactileButton>
             </View>
-          }
-        />
-      )}
+
+            {/* Sub-tab view switch */}
+            {librarySubTab === 'albums' ? (
+              <AlbumsView
+                albums={albums}
+                theme={theme}
+                onSelectAlbum={(alb) => setSelectedAlbum(alb)}
+              />
+            ) : librarySubTab === 'genres' ? (
+              <GenresView
+                genres={genres}
+                theme={theme}
+                onSelectGenre={(gen) => setSelectedGenre(gen)}
+              />
+            ) : librarySubTab === 'artists' ? (
+              /* Artists List */
+              <FlatList
+                data={artists}
+                keyExtractor={(item) => item.name}
+                contentContainerStyle={styles.listContainer}
+                renderItem={({ item }) => (
+                  <TactileButton
+                    onPress={() => setSelectedArtist(item)}
+                    style={[
+                      styles.folderCard,
+                      { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
+                    ]}
+                  >
+                    <View style={[styles.folderIconBox, { backgroundColor: theme.surfaceLight }]}>
+                      <Ionicons name="person" size={24} color={theme.accent} />
+                    </View>
+                    <View style={styles.folderInfoCol}>
+                      <Text style={[styles.folderTitle, { color: theme.textPrimary }]} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={[styles.folderMeta, { color: theme.textSecondary }]}>
+                        {item.trackCount} {item.trackCount === 1 ? 'song' : 'songs'} • {item.albumCount} {item.albumCount === 1 ? 'album' : 'albums'}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+                  </TactileButton>
+                )}
+              />
+            ) : librarySubTab === 'folders' && !selectedFolder ? (
+              /* Folders List */
+              <FlatList
+                data={folders}
+                keyExtractor={(item) => item.name}
+                contentContainerStyle={styles.listContainer}
+                renderItem={({ item }) => (
+                  <TactileButton
+                    onPress={() => setSelectedFolder(item.name)}
+                    style={[
+                      styles.folderCard,
+                      { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
+                    ]}
+                  >
+                    <View style={[styles.folderIconBox, { backgroundColor: theme.surfaceLight }]}>
+                      <Ionicons name="folder" size={24} color={theme.accent} />
+                    </View>
+                    <View style={styles.folderInfoCol}>
+                      <Text style={[styles.folderTitle, { color: theme.textPrimary }]} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={[styles.folderMeta, { color: theme.textSecondary }]}>
+                        {item.count} {item.count === 1 ? 'track' : 'tracks'} {item.size > 0 ? `• ${formatFileSize(item.size)}` : ''}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+                  </TactileButton>
+                )}
+              />
+            ) : (
+              /* Tracks & Favorites FlatList */
+              <FlatList
+                data={libraryTracks}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.listContainer}
+                renderItem={({ item, index }) => (
+                  <TrackListItem
+                    track={item}
+                    index={index}
+                    isCurrent={playbackState.currentTrack?.id === item.id}
+                    isPlaying={playbackState.isPlaying}
+                    theme={theme}
+                    onPress={() => handlePlayTrack(item, libraryTracks)}
+                    onToggleFavorite={handleToggleFavorite}
+                    onPlayNext={handlePlayNext}
+                    onAddToQueue={handleAddToQueue}
+                    onAddToPlaylist={handleAddToPlaylist}
+                    onEditTags={handleEditTags}
+                  />
+                )}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="musical-notes-outline" size={54} color={theme.textTertiary} />
+                    <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
+                      {librarySubTab === 'favorites' ? 'No favorites yet' : 'No local music found'}
+                    </Text>
+                    <Text style={[styles.emptySubtitle, { color: theme.textTertiary }]}>
+                      {librarySubTab === 'favorites'
+                        ? 'Tap the heart icon on any song to add it to your favorites.'
+                        : 'Tap "Pick Audio Files" or grant storage permissions to scan your device.'}
+                    </Text>
+                    {librarySubTab !== 'favorites' && (
+                      <TactileButton
+                        onPress={handlePickFiles}
+                        style={[styles.emptyPickBtn, { backgroundColor: theme.accent }]}
+                      >
+                        <Text style={[styles.emptyPickBtnText, { color: theme.background }]}>
+                          Pick Audio Files
+                        </Text>
+                      </TactileButton>
+                    )}
+                  </View>
+                }
+              />
+            )}
+          </View>
+        ) : mainTab === 'playlists' ? (
+          /* PLAYLISTS TAB */
+          <View style={{ flex: 1, paddingHorizontal: 20 }}>
+            <View style={styles.playlistActionRow}>
+              <Text style={[styles.subSectionTitle, { color: theme.textSecondary }]}>
+                MY PLAYLISTS ({playlists.length})
+              </Text>
+              <TactileButton
+                onPress={() => {
+                  setAddTrackToPlaylistTarget(null);
+                  setPlaylistsOpen(true);
+                }}
+                style={[styles.createPlBtn, { backgroundColor: theme.accent }]}
+              >
+                <Ionicons name="add" size={16} color={theme.background} />
+                <Text style={[styles.createPlBtnText, { color: theme.background }]}>New</Text>
+              </TactileButton>
+            </View>
+
+            <FlatList
+              data={playlists}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={{ paddingBottom: 110 }}
+              renderItem={({ item }) => (
+                <TactileButton
+                  onPress={() => setSelectedPlaylist(item)}
+                  style={[
+                    styles.folderCard,
+                    { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
+                  ]}
+                >
+                  <View style={[styles.folderIconBox, { backgroundColor: theme.surfaceLight }]}>
+                    <Ionicons name="musical-notes" size={24} color={theme.accent} />
+                  </View>
+                  <View style={styles.folderInfoCol}>
+                    <Text style={[styles.folderTitle, { color: theme.textPrimary }]} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text style={[styles.folderMeta, { color: theme.textSecondary }]}>
+                      {item.trackIds.length} {item.trackIds.length === 1 ? 'track' : 'tracks'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+                </TactileButton>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="folder-open-outline" size={48} color={theme.textTertiary} />
+                  <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
+                    No custom playlists yet
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: theme.textTertiary }]}>
+                    Tap "+ New" above to organize your offline music collection.
+                  </Text>
+                </View>
+              }
+            />
+          </View>
+        ) : mainTab === 'search' ? (
+          /* SEARCH HUB TAB */
+          <SearchHubView
+            tracks={tracks}
+            albums={albums}
+            artists={artists}
+            theme={theme}
+            currentTrackId={playbackState.currentTrack?.id}
+            isPlaying={playbackState.isPlaying}
+            onPlayTrack={handlePlayTrack}
+            onSelectAlbum={(alb) => setSelectedAlbum(alb)}
+            onSelectArtist={(art) => setSelectedArtist(art)}
+            onToggleFavorite={handleToggleFavorite}
+            onPlayNext={handlePlayNext}
+            onAddToQueue={handleAddToQueue}
+            onAddToPlaylist={handleAddToPlaylist}
+            onEditTags={handleEditTags}
+          />
+        ) : (
+          /* SETTINGS TAB */
+          <SettingsView
+            theme={theme}
+            onThemeChanged={(newTheme) => setTheme(newTheme)}
+            onOpenCloudSync={() => setCloudSyncOpen(true)}
+            onScanDevice={handleScanDevice}
+            onPickFiles={handlePickFiles}
+            onSettingsChanged={() => loadInitialData()}
+          />
+        )}
+      </View>
 
       {/* Floating Bottom Mini Player */}
       {playbackState.currentTrack && (
@@ -551,6 +599,49 @@ export default function App() {
         />
       )}
 
+      {/* Persistent Bottom Navigation Bar */}
+      <View
+        style={[
+          styles.bottomNavBar,
+          {
+            backgroundColor: theme.surface,
+            borderTopColor: theme.surfaceBorder,
+          },
+        ]}
+      >
+        {[
+          { key: 'library', label: 'Library', icon: 'library-outline', activeIcon: 'library' },
+          { key: 'playlists', label: 'Playlists', icon: 'musical-notes-outline', activeIcon: 'musical-notes' },
+          { key: 'search', label: 'Search', icon: 'search-outline', activeIcon: 'search' },
+          { key: 'settings', label: 'Settings', icon: 'settings-outline', activeIcon: 'settings' },
+        ].map((tab) => {
+          const isActive = mainTab === tab.key;
+          return (
+            <TactileButton
+              key={tab.key}
+              onPress={() => setMainTab(tab.key as MainNavTab)}
+              style={styles.navTabBtn}
+            >
+              <Ionicons
+                name={(isActive ? tab.activeIcon : tab.icon) as any}
+                size={22}
+                color={isActive ? theme.accent : theme.textTertiary}
+              />
+              <Text
+                style={[
+                  styles.navTabLabel,
+                  { color: isActive ? theme.accent : theme.textTertiary },
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </TactileButton>
+          );
+        })}
+      </View>
+
+      {/* MODALS */}
+
       {/* Full-Screen Now Playing Modal */}
       <NowPlayingModal
         visible={nowPlayingOpen}
@@ -562,6 +653,95 @@ export default function App() {
         onOpenQueue={() => setQueueOpen(true)}
         onOpenTagEditor={(track) => setTagEditorTrack(track)}
         onToggleFavorite={handleToggleFavorite}
+      />
+
+      {/* Album Detail Modal */}
+      <AlbumDetailModal
+        visible={selectedAlbum !== null}
+        album={selectedAlbum}
+        theme={theme}
+        currentTrackId={playbackState.currentTrack?.id}
+        isPlaying={playbackState.isPlaying}
+        onClose={() => setSelectedAlbum(null)}
+        onPlayTrack={handlePlayTrack}
+        onPlayAll={handlePlayAll}
+        onToggleFavorite={handleToggleFavorite}
+        onPlayNext={handlePlayNext}
+        onAddToQueue={handleAddToQueue}
+        onAddToPlaylist={handleAddToPlaylist}
+        onEditTags={handleEditTags}
+      />
+
+      {/* Artist Detail Modal */}
+      <ArtistDetailModal
+        visible={selectedArtist !== null}
+        artist={selectedArtist}
+        artistAlbums={albums.filter((a) => a.artist === selectedArtist?.name)}
+        theme={theme}
+        currentTrackId={playbackState.currentTrack?.id}
+        isPlaying={playbackState.isPlaying}
+        onClose={() => setSelectedArtist(null)}
+        onSelectAlbum={(alb) => {
+          setSelectedAlbum(alb);
+        }}
+        onPlayTrack={handlePlayTrack}
+        onPlayAll={handlePlayAll}
+        onToggleFavorite={handleToggleFavorite}
+        onPlayNext={handlePlayNext}
+        onAddToQueue={handleAddToQueue}
+        onAddToPlaylist={handleAddToPlaylist}
+        onEditTags={handleEditTags}
+      />
+
+      {/* Genre Detail Modal */}
+      <GenreDetailModal
+        visible={selectedGenre !== null}
+        genre={selectedGenre}
+        theme={theme}
+        currentTrackId={playbackState.currentTrack?.id}
+        isPlaying={playbackState.isPlaying}
+        onClose={() => setSelectedGenre(null)}
+        onPlayTrack={handlePlayTrack}
+        onPlayAll={handlePlayAll}
+        onToggleFavorite={handleToggleFavorite}
+        onPlayNext={handlePlayNext}
+        onAddToQueue={handleAddToQueue}
+        onAddToPlaylist={handleAddToPlaylist}
+        onEditTags={handleEditTags}
+      />
+
+      {/* Playlist Detail Modal */}
+      <PlaylistDetailModal
+        visible={selectedPlaylist !== null}
+        playlist={selectedPlaylist}
+        allTracks={tracks}
+        theme={theme}
+        currentTrackId={playbackState.currentTrack?.id}
+        isPlaying={playbackState.isPlaying}
+        onClose={() => setSelectedPlaylist(null)}
+        onPlaylistUpdated={refreshPlaylists}
+        onPlayTrack={handlePlayTrack}
+        onPlayAll={handlePlayAll}
+        onToggleFavorite={handleToggleFavorite}
+        onPlayNext={handlePlayNext}
+        onAddToQueue={handleAddToQueue}
+        onAddToPlaylist={handleAddToPlaylist}
+        onEditTags={handleEditTags}
+      />
+
+      {/* Playlists Management / Add Track Modal */}
+      <PlaylistModal
+        visible={playlistsOpen}
+        onClose={() => {
+          setPlaylistsOpen(false);
+          setAddTrackToPlaylistTarget(null);
+        }}
+        theme={theme}
+        allTracks={tracks}
+        onPlayTracks={(selected) => player.setQueue(selected, 0)}
+        onOpenPlaylistDetail={(pl) => setSelectedPlaylist(pl)}
+        addTrackMode={addTrackToPlaylistTarget}
+        onTrackAddedToPlaylist={refreshPlaylists}
       />
 
       {/* Equalizer Modal */}
@@ -587,20 +767,6 @@ export default function App() {
         onQueueUpdated={() => {}}
       />
 
-      {/* Playlists Modal */}
-      <PlaylistModal
-        visible={playlistsOpen}
-        onClose={() => {
-          setPlaylistsOpen(false);
-          setAddTrackToPlaylistTarget(null);
-        }}
-        theme={theme}
-        allTracks={tracks}
-        onPlayTracks={(selected) => player.setQueue(selected, 0)}
-        addTrackMode={addTrackToPlaylistTarget}
-        onTrackAddedToPlaylist={() => {}}
-      />
-
       {/* ID3 Tag Editor Modal */}
       <TagEditorModal
         visible={tagEditorTrack !== null}
@@ -624,11 +790,9 @@ export default function App() {
         onClose={() => setCloudSyncOpen(false)}
         theme={theme}
         onSyncCompleted={async () => {
-          // Refresh theme if changed on cloud
           const id = await StorageService.getThemeId();
           if (THEMES[id]) setTheme(THEMES[id]);
-          // Refresh tracks to reflect any synced metadata / favorites
-          loadInitialTracks();
+          loadInitialData();
         }}
       />
     </SafeAreaView>
@@ -670,35 +834,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  searchContainer: {
-    paddingHorizontal: 20,
-    marginVertical: 8,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 10,
-  },
-  searchInput: {
+  mainContainer: {
     flex: 1,
-    fontSize: 14,
-    padding: 0,
   },
-  tabsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
+  subTabsContainer: {
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
-  tabItem: {
-    paddingVertical: 10,
-    marginRight: 20,
+  subTabsRow: {
+    paddingHorizontal: 20,
+    gap: 20,
   },
-  tabText: {
+  subTabItem: {
+    paddingVertical: 10,
+  },
+  subTabText: {
     fontSize: 14,
     fontWeight: '700',
   },
@@ -750,7 +900,7 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: 20,
     paddingTop: 4,
-    paddingBottom: 24,
+    paddingBottom: 110,
   },
   folderCard: {
     flexDirection: 'row',
@@ -815,5 +965,48 @@ const styles = StyleSheet.create({
   emptyPickBtnText: {
     fontSize: 13,
     fontWeight: '800',
+  },
+  playlistActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  subSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+  },
+  createPlBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  createPlBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  bottomNavBar: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    paddingBottom: 6,
+    paddingTop: 8,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  navTabBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    gap: 3,
+  },
+  navTabLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

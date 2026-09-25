@@ -20,6 +20,7 @@ interface PlaylistModalProps {
   theme: AppTheme;
   allTracks: Track[];
   onPlayTracks: (tracks: Track[]) => void;
+  onOpenPlaylistDetail?: (playlist: Playlist) => void;
   addTrackMode?: Track | null; // If set, user is choosing which playlist to add this track to
   onTrackAddedToPlaylist?: () => void;
 }
@@ -30,6 +31,7 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
   theme,
   allTracks,
   onPlayTracks,
+  onOpenPlaylistDetail,
   addTrackMode,
   onTrackAddedToPlaylist,
 }) => {
@@ -69,18 +71,25 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
       Alert.alert('Added', `Added "${addTrackMode.title}" to "${playlist.name}"`);
       if (onTrackAddedToPlaylist) onTrackAddedToPlaylist();
       onClose();
+    } else if (onOpenPlaylistDetail) {
+      onOpenPlaylistDetail(playlist);
+      onClose();
     } else {
       // Play this playlist
-      const playlistTracks = playlist.trackIds
-        .map(id => allTracks.find(t => t.id === id))
-        .filter((t): t is Track => t !== undefined);
+      playPlaylist(playlist);
+    }
+  };
 
-      if (playlistTracks.length > 0) {
-        onPlayTracks(playlistTracks);
-        onClose();
-      } else {
-        Alert.alert('Empty Playlist', 'This playlist has no audio tracks yet.');
-      }
+  const playPlaylist = (playlist: Playlist) => {
+    const playlistTracks = playlist.trackIds
+      .map(id => allTracks.find(t => t.id === id))
+      .filter((t): t is Track => t !== undefined);
+
+    if (playlistTracks.length > 0) {
+      onPlayTracks(playlistTracks);
+      onClose();
+    } else {
+      Alert.alert('Empty Playlist', 'This playlist has no audio tracks yet.');
     }
   };
 
@@ -131,12 +140,20 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
         </TactileButton>
 
         {!addTrackMode && (
-          <TactileButton
-            onPress={() => handleDeletePlaylist(item.id, item.name)}
-            style={styles.deleteBtn}
-          >
-            <Ionicons name="trash-outline" size={18} color={theme.textTertiary} />
-          </TactileButton>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TactileButton
+              onPress={() => playPlaylist(item)}
+              style={styles.deleteBtn}
+            >
+              <Ionicons name="play-circle-outline" size={22} color={theme.accent} />
+            </TactileButton>
+            <TactileButton
+              onPress={() => handleDeletePlaylist(item.id, item.name)}
+              style={styles.deleteBtn}
+            >
+              <Ionicons name="trash-outline" size={18} color={theme.textTertiary} />
+            </TactileButton>
+          </View>
         )}
       </View>
     );

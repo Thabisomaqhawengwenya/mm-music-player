@@ -51,6 +51,24 @@ A high-fidelity, offline-first mobile music player engineered for playing local 
    - Configurable server endpoint (Android emulator `10.0.2.2:4000`, local network IP, or production cloud domain).
    - Offline resilience: works 100% disconnected; syncs seamlessly when connected.
 
+9. **Multi-View Library & Detail Navigation**:
+   - **4-Tab Bottom Navigation Bar**: Library, Playlists, Search, and Settings with tactile tab switching.
+   - **Library Sub-Views**: Tracks, Albums (2-column square art grid), Artists, Folders, Genres (colored category tiles), and Favorites.
+   - **Album Detail Screen**: Full album hero cover, release year, total runtime, Play All & Shuffle buttons, and numbered tracklist.
+   - **Artist Profile Screen**: Artist avatar, discography album carousel, song counter, and complete song catalog.
+   - **Genre Detail Screen**: Filtered tracks by genre with instant playback.
+   - **Playlist Detail Screen**: Full playlist inspector with track removal, playlist renaming, total duration, and playback.
+
+10. **Enhanced Now Playing & Audio DSP**:
+    - **Live Audio Spectrum Visualizer**: 14 animated dancing bars that react dynamically during active playback.
+    - **Software Volume Slider**: In-player touch volume bar with one-tap mute toggle.
+    - **Lyrics Flip View**: Instant flip between Album Art and an embedded / scrolling lyrics sheet.
+    - **Audio DSP Filters in Settings**: Configurable short-audio filter (e.g. ignore notifications & voice memos <30s), crossfade durations (0s to 8s), and gapless playback toggles.
+
+11. **Dedicated Search & Discovery Hub**:
+    - Instant multi-category query filtering across Tracks, Albums, Artists, and Genres.
+    - Smart quick filters: "Favorites Only", "Long Tracks (>3 mins)", and scope chips ("All", "Tracks", "Albums", "Artists").
+
 ---
 
 ## 🚀 How to Run the App & Sync Server
@@ -88,20 +106,28 @@ The server will start listening at `http://localhost:4000` (or `http://10.0.2.2:
 
 ## 📁 Project Architecture
 
-- `App.tsx`: Main entry point orchestrating tab views, search filters, modal controls, mini player, and cloud sync trigger.
-- `src/types/index.ts`: TypeScript interfaces for tracks, playback states, playlists, equalizer presets, and themes.
+- `App.tsx`: Main entry point orchestrating 4-tab bottom navigation, library sub-views, modal controllers, and mini player.
+- `src/types/index.ts`: TypeScript interfaces for tracks, albums, artists, genres, audio settings, playback states, playlists, equalizer presets, and themes.
 - `src/constants/theme.ts`: Design system tokens and multiple aesthetic themes.
-- `src/services/audioPlayer.ts`: Singleton audio playback engine managing `expo-audio`, background mode, queue, and sleep timer.
-- `src/services/storageScanner.ts`: Media library scanner and document picker for local storage audio assets.
-- `src/services/playlistStorage.ts`: Local persistent storage for playlists, favorites, metadata overrides, and EQ settings.
+- `src/services/audioPlayer.ts`: Singleton audio playback engine managing `expo-audio`, background mode, queue, volume, and sleep timer.
+- `src/services/storageScanner.ts`: Media library scanner, document picker, album/artist/genre groupers, and audio settings filters.
+- `src/services/playlistStorage.ts`: Local persistent storage for playlists, favorites, metadata overrides, EQ settings, and audio preferences.
 - `src/services/syncClient.ts`: Offline-first delta synchronization and cloud backup client.
 - `src/components/`:
   - `MiniPlayer.tsx`: Bottom floating glassmorphic player with rotating vinyl art and progress bar.
-  - `NowPlayingModal.tsx`: Full-screen player with pulsing artwork, interactive scrubber, and control buttons.
+  - `NowPlayingModal.tsx`: Full-screen player with live audio spectrum visualizer, volume bar, lyrics flip sheet, interactive scrubber, and playback controls.
+  - `AlbumsView.tsx`: 2-column album art grid with track badges.
+  - `AlbumDetailModal.tsx`: Album hero header, tracklist, and Play All / Shuffle actions.
+  - `ArtistDetailModal.tsx`: Artist profile with discography carousel and all songs.
+  - `GenresView.tsx`: Category cards with genre icons and distinct tints.
+  - `GenreDetailModal.tsx`: Genre tracklist view with playback controls.
+  - `PlaylistDetailModal.tsx`: Custom playlist manager with track removal, song count, and playlist renaming.
+  - `SearchHubView.tsx`: Global search hub with scope chips and smart filters.
+  - `SettingsView.tsx`: Audio DSP options, min duration filter, theme switcher, storage scanner, and cloud sync trigger.
   - `EqualizerModal.tsx`: 5-band interactive EQ sliders, DSP bass boost, and presets.
   - `SleepTimerModal.tsx`: Sleep timer selector with live countdown.
   - `QueueModal.tsx`: Real-time playback queue with "Save as Playlist".
-  - `PlaylistModal.tsx`: Playlist creator, track manager, and playlist playback.
+  - `PlaylistModal.tsx`: Playlist creator and track assigner.
   - `TagEditorModal.tsx`: ID3 metadata viewer and editor.
   - `ThemeSwitcherModal.tsx`: Theme switcher modal.
   - `CloudSyncModal.tsx`: Account authentication, server endpoint configuration, and delta sync dashboard.

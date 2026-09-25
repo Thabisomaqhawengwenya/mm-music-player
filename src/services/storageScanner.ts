@@ -1,6 +1,6 @@
 import * as MediaLibrary from 'expo-media-library/legacy';
 import * as DocumentPicker from 'expo-document-picker';
-import { Track } from '../types';
+import { Track, Album, Artist, Genre } from '../types';
 import { StorageService } from './playlistStorage';
 
 // High quality offline demo audio samples for instant playback in emulator, Expo Go, or test environments
@@ -71,6 +71,7 @@ export class StorageScannerService {
     const overrides = await StorageService.getCustomMetadataOverrides();
     const favorites = await StorageService.getFavorites();
     const customUserTracks = await StorageService.getCustomTracks();
+    const audioSettings = await StorageService.getAudioSettings();
 
     let scannedTracks: Track[] = [];
 
@@ -120,7 +121,7 @@ export class StorageScannerService {
     const baseList = allFound.length > 0 ? allFound : DEMO_TRACKS;
 
     // Apply metadata overrides and favorite states
-    const finalTracks = baseList.map(track => {
+    let finalTracks = baseList.map(track => {
       const override = overrides[track.id] || {};
       return {
         ...track,
@@ -129,10 +130,118 @@ export class StorageScannerService {
       };
     });
 
+    // Filter by user settings: minimum duration & excluded folders
+    if (audioSettings.minDurationSeconds > 0) {
+      finalTracks = finalTracks.filter(
+        t => t.duration === 0 || t.duration >= audioSettings.minDurationSeconds
+      );
+    }
+
+    if (audioSettings.excludeFolders && audioSettings.excludeFolders.length > 0) {
+      const excludedLower = audioSettings.excludeFolders.map(f => f.toLowerCase());
+      finalTracks = finalTracks.filter(t => {
+        const folderLower = (t.folder || '').toLowerCase();
+        return !excludedLower.some(ex => folderLower.includes(ex));
+      });
+    }
+
     return {
       tracks: finalTracks,
       permissionGranted: hasPermission,
     };
+  }
+
+  /**
+   * Group tracks into Album objects
+   */
+  static groupTracksByAlbum(tracks: Track[]): Album[] {
+    const map = new Map<string, Track[]>();
+
+    tracks.forEach(track => {
+      const albumKey = track.album || 'Unknown Album';
+      if (!map.has(albumKey)) {
+        map.set(albumKey, []);
+      }
+      map.get(albumKey)!.push(track);
+    });
+
+    return Array.from(map.entries()).map(([name, albumTracks]) => {
+      const first = albumTracks[0];
+      const totalDuration = albumTracks.reduce((acc, t) => acc + (t.duration || 0), 0);
+      return {
+        id: `album_${name}`,
+        name,
+        artist: first.artist || 'Various Artists',
+        artwork: first.artwork,
+        year: first.year,
+        trackCount: albumTracks.length,
+        totalDuration,
+        tracks: albumTracks,
+      };
+    });
+  }
+
+  /**
+   * Group tracks into Artist objects
+   */
+  static groupTracksByArtist(tracks: Track[]): Artist[] {
+    const map = new Map<string, Track[]>();
+
+    tracks.forEach(track => {
+      const artistKey = track.artist || 'Unknown Artist';
+      if (!map.has(artistKey)) {
+        map.set(artistKey, []);
+      }
+      map.get(artistKey)!.push(track);
+    });
+
+    return Array.from(map.entries()).map(([name, artistTracks]) => {
+      const first = artistTracks[0];
+      const uniqueAlbums = new Set(artistTracks.map(t => t.album)).size;
+      return {
+        name,
+        trackCount: artistTracks.length,
+        albumCount: uniqueAlbums,
+        artwork: first.artwork,
+        tracks: artistTracks,
+      };
+    });
+  }
+
+  /**
+   * Group tracks into Genre objects
+   */
+  static groupTracksByGenre(tracks: Track[]): Genre[] {
+    const map = new Map<string, Track[]>();
+
+    tracks.forEach(track => {
+      const genreKey = track.genre || 'Various';
+      if (!map.has(genreKey)) {
+        map.set(genreKey, []);
+      }
+      map.get(genreKey)!.push(track);
+    });
+
+    const GENRE_COLORS: Record<string, string> = {
+      'Lo-Fi / Synthwave': '#00E5FF',
+      'Electronic / Ambient': '#8B5CF6',
+      'Neo-Soul / Jazz': '#F59E0B',
+      'Rock': '#EF4444',
+      'Hip-Hop': '#10B981',
+      'Pop': '#EC4899',
+      'Classical': '#3B82F6',
+      'Local Audio': '#06B6D4',
+      'Local File': '#64748B',
+    };
+
+    return Array.from(map.entries()).map(([name, genreTracks]) => {
+      return {
+        name,
+        trackCount: genreTracks.length,
+        color: GENRE_COLORS[name] || '#3B82F6',
+        tracks: genreTracks,
+      };
+    });
   }
 
   /**
