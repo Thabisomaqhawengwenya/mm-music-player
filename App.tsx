@@ -46,8 +46,6 @@ import { ThemeSwitcherModal } from './src/components/ThemeSwitcherModal';
 import { CloudSyncModal } from './src/components/CloudSyncModal';
 import { TermsModal } from './src/components/TermsModal';
 import { PrivacyModal } from './src/components/PrivacyModal';
-import { CreateSheetModal } from './src/components/CreateSheetModal';
-import { AIPlaylistModal } from './src/components/AIPlaylistModal';
 import { formatFileSize } from './src/utils/formatters';
 
 type MainNavTab = 'library' | 'playlists' | 'search' | 'settings';
@@ -94,9 +92,6 @@ export default function App() {
   const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
-  const [createSheetOpen, setCreateSheetOpen] = useState(false);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [aiModalMode, setAiModalMode] = useState<'ai' | 'blend' | 'mixed' | 'collab'>('ai');
   const [tagEditorTrack, setTagEditorTrack] = useState<Track | null>(null);
   const [addTrackToPlaylistTarget, setAddTrackToPlaylistTarget] = useState<Track | null>(null);
 
@@ -212,39 +207,6 @@ export default function App() {
     setPlaylistsOpen(true);
   };
 
-  const handleSelectCreateOption = (option: 'playlist' | 'collab' | 'mixed' | 'blend' | 'ai' | 'jam') => {
-    if (option === 'playlist') {
-      setAddTrackToPlaylistTarget(null);
-      setPlaylistsOpen(true);
-    } else if (option === 'collab') {
-      setAiModalMode('collab');
-      setAiModalOpen(true);
-    } else if (option === 'mixed') {
-      setAiModalMode('mixed');
-      setAiModalOpen(true);
-    } else if (option === 'blend') {
-      setAiModalMode('blend');
-      setAiModalOpen(true);
-    } else if (option === 'ai') {
-      setAiModalMode('ai');
-      setAiModalOpen(true);
-    } else if (option === 'jam') {
-      Alert.alert(
-        'MM Jam Session',
-        'Start a synchronized playback queue across nearby WiFi or Bluetooth devices.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Start Jam Room',
-            onPress: () => {
-              Alert.alert('Jam Active', 'Room broadcast active. Nearby listeners can now sync to your playback queue!');
-            },
-          },
-        ]
-      );
-    }
-  };
-
   const handleEditTags = (track: Track) => {
     setTagEditorTrack(track);
   };
@@ -292,48 +254,37 @@ export default function App() {
     <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
       <StatusBar barStyle="light-content" />
 
-      {/* Main Screen Header (SettingsView has its own Musicolet header) */}
+      {/* Main Screen Header */}
       {mainTab !== 'settings' && (
         <View style={styles.header}>
-          <View style={styles.headerTitleRow}>
-            {mainTab === 'library' && (
-              <View style={[styles.avatarCircle, { backgroundColor: theme.accent }]}>
-                <Text style={[styles.avatarText, { color: theme.background }]}>M</Text>
-              </View>
-            )}
-            <View>
-              {mainTab !== 'library' && (
-                <Text style={[styles.brandEyebrow, { color: theme.accent }]}>
-                  HI-FI OFFLINE AUDIO
-                </Text>
-              )}
-              <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
-                {mainTab === 'library'
-                  ? 'Your Library'
-                  : mainTab === 'playlists'
-                  ? 'Playlists'
-                  : 'Search Library'}
-              </Text>
-            </View>
+          <View>
+            <Text style={[styles.brandEyebrow, { color: theme.accent }]}>
+              HI-FI OFFLINE AUDIO
+            </Text>
+            <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
+              {mainTab === 'library'
+                ? 'Local Music'
+                : mainTab === 'playlists'
+                ? 'Playlists'
+                : 'Search Library'}
+            </Text>
           </View>
 
           <View style={styles.headerButtonsRow}>
-            {/* Search shortcut for library/playlists */}
-            {mainTab !== 'search' && (
-              <TactileButton
-                onPress={() => setMainTab('search')}
-                style={[styles.headerIconBtn, { backgroundColor: theme.surfaceLight }]}
-              >
-                <Ionicons name="search" size={20} color={theme.textPrimary} />
-              </TactileButton>
-            )}
-
-            {/* Create (+) shortcut matching Spotify image */}
+            {/* Cloud Sync shortcut */}
             <TactileButton
-              onPress={() => setCreateSheetOpen(true)}
-              style={[styles.headerIconBtn, { backgroundColor: theme.accent }]}
+              onPress={() => setCloudSyncOpen(true)}
+              style={[styles.headerIconBtn, { backgroundColor: theme.surfaceLight }]}
             >
-              <Ionicons name="add" size={24} color={theme.background} />
+              <Ionicons name="cloud-outline" size={20} color={theme.accent} />
+            </TactileButton>
+
+            {/* Quick Rescan */}
+            <TactileButton
+              onPress={handleScanDevice}
+              style={[styles.headerIconBtn, { backgroundColor: theme.surfaceLight }]}
+            >
+              <Ionicons name="scan-outline" size={20} color={theme.textPrimary} />
             </TactileButton>
 
             {/* Theme Palette */}
@@ -559,7 +510,10 @@ export default function App() {
                 MY PLAYLISTS ({playlists.length})
               </Text>
               <TactileButton
-                onPress={() => setCreateSheetOpen(true)}
+                onPress={() => {
+                  setAddTrackToPlaylistTarget(null);
+                  setPlaylistsOpen(true);
+                }}
                 style={[styles.createPlBtn, { backgroundColor: theme.accent }]}
               >
                 <Ionicons name="add" size={16} color={theme.background} />
@@ -862,27 +816,6 @@ export default function App() {
         onClose={() => setPrivacyOpen(false)}
         theme={theme}
       />
-
-      {/* Spotify-style Creation Options Bottom Sheet */}
-      <CreateSheetModal
-        visible={createSheetOpen}
-        onClose={() => setCreateSheetOpen(false)}
-        theme={theme}
-        onSelectOption={handleSelectCreateOption}
-      />
-
-      {/* AI Smart Playlist & Blend Modal */}
-      <AIPlaylistModal
-        visible={aiModalOpen}
-        onClose={() => setAiModalOpen(false)}
-        theme={theme}
-        allTracks={tracks}
-        mode={aiModalMode}
-        onPlaylistCreated={(newPl) => {
-          refreshPlaylists();
-          setSelectedPlaylist(newPl);
-        }}
-      />
     </SafeAreaView>
   );
 }
@@ -898,22 +831,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 15,
-    fontWeight: '800',
   },
   brandEyebrow: {
     fontSize: 10,
