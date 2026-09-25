@@ -8,6 +8,7 @@ import {
   LockscreenSettings,
   AdvancedSettings,
   WidgetSettings,
+  PetSettings,
 } from '../types';
 
 const STORAGE_KEYS = {
@@ -25,6 +26,14 @@ const STORAGE_KEYS = {
   LOCKSCREEN_SETTINGS: '@mm_music_lockscreen_settings',
   ADVANCED_SETTINGS: '@mm_music_advanced_settings',
   WIDGET_SETTINGS: '@mm_music_widget_settings',
+  PET_SETTINGS: '@mm_music_pet_settings',
+};
+
+export const defaultPetSettings = {
+  enabled: true,
+  avatar: 'cat' as const,
+  showOnNowPlaying: true,
+  showFloatingMini: true,
 };
 
 export const defaultAudioSettings = {
@@ -461,6 +470,26 @@ export class StorageService {
     }
   }
 
+  // --- Music Pet Companion ---
+  static async getPetSettings(): Promise<PetSettings> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.PET_SETTINGS);
+      return data ? { ...defaultPetSettings, ...JSON.parse(data) } : defaultPetSettings;
+    } catch {
+      return defaultPetSettings;
+    }
+  }
+
+  static async savePetSettings(settings: Partial<PetSettings>): Promise<void> {
+    try {
+      const current = await this.getPetSettings();
+      const updated = { ...current, ...settings };
+      await AsyncStorage.setItem(STORAGE_KEYS.PET_SETTINGS, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save pet settings', e);
+    }
+  }
+
   static async resetAllSettings(): Promise<void> {
     await this.saveAudioSettings(defaultAudioSettings);
     await this.saveHeadsetSettings(defaultHeadsetSettings);
@@ -468,5 +497,6 @@ export class StorageService {
     await this.saveLockscreenSettings(defaultLockscreenSettings);
     await this.saveAdvancedSettings(defaultAdvancedSettings);
     await this.saveWidgetSettings(defaultWidgetSettings);
+    await this.savePetSettings(defaultPetSettings);
   }
 }

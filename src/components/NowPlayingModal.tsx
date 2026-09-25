@@ -13,17 +13,19 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Track, PlaybackState, AppTheme } from '../types';
+import { Track, PlaybackState, AppTheme, PetSettings } from '../types';
 import { AudioPlayerService } from '../services/audioPlayer';
 import { StorageService } from '../services/playlistStorage';
 import { TactileButton } from './TactileButton';
 import { formatTime } from '../utils/formatters';
+import { MusicPet } from '../pet/MusicPet';
 
 interface NowPlayingModalProps {
   visible: boolean;
   onClose: () => void;
   playbackState: PlaybackState;
   theme: AppTheme;
+  petSettings?: PetSettings;
   onOpenEqualizer: () => void;
   onOpenSleepTimer: () => void;
   onOpenQueue: () => void;
@@ -39,6 +41,7 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
   onClose,
   playbackState,
   theme,
+  petSettings,
   onOpenEqualizer,
   onOpenSleepTimer,
   onOpenQueue,
@@ -289,20 +292,34 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
           )}
         </View>
 
-        {/* Dynamic Spectrum Audio Visualizer Bars */}
-        <View style={styles.visualizerRow}>
-          {visualizerAnims.map((anim, idx) => (
-            <Animated.View
-              key={idx}
-              style={[
-                styles.visualizerBar,
-                {
-                  backgroundColor: theme.accent,
-                  transform: [{ scaleY: anim }],
-                },
-              ]}
-            />
-          ))}
+        {/* Dynamic Spectrum Audio Visualizer & Music Pet Stage */}
+        <View style={styles.petAndVisualizerContainer}>
+          {petSettings?.enabled && petSettings?.showOnNowPlaying && (
+            <View style={styles.nowPlayingPetStage}>
+              <MusicPet
+                playbackState={playbackState}
+                theme={theme}
+                avatar={petSettings.avatar}
+                size="normal"
+                showSpeech={true}
+              />
+            </View>
+          )}
+
+          <View style={styles.visualizerRow}>
+            {visualizerAnims.map((anim, idx) => (
+              <Animated.View
+                key={idx}
+                style={[
+                  styles.visualizerBar,
+                  {
+                    backgroundColor: theme.accent,
+                    transform: [{ scaleY: anim }],
+                  },
+                ]}
+              />
+            ))}
+          </View>
         </View>
 
         {/* Track Details & Favorite */}
@@ -555,6 +572,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 3,
+  },
+  petAndVisualizerContainer: {
+    marginVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nowPlayingPetStage: {
+    marginBottom: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   metaRow: {
     flexDirection: 'row',

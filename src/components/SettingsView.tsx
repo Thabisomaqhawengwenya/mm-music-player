@@ -18,6 +18,8 @@ import {
   LockscreenSettings,
   AdvancedSettings,
   WidgetSettings,
+  PetSettings,
+  PetAvatarType,
 } from '../types';
 import { THEMES } from '../constants/theme';
 import {
@@ -28,7 +30,10 @@ import {
   defaultLockscreenSettings,
   defaultAdvancedSettings,
   defaultWidgetSettings,
+  defaultPetSettings,
 } from '../services/playlistStorage';
+import { MusicPet } from '../pet/MusicPet';
+import { PET_PROFILES } from '../pet/types';
 import { TactileButton } from './TactileButton';
 
 type SettingsCategory =
@@ -41,6 +46,7 @@ type SettingsCategory =
   | 'notifications'
   | 'widgets'
   | 'lockscreen'
+  | 'pet'
   | 'advanced'
   | 'backup'
   | 'legal';
@@ -90,13 +96,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [lockscreenSettings, setLockscreenSettings] = useState<LockscreenSettings>(defaultLockscreenSettings);
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>(defaultAdvancedSettings);
   const [widgetSettings, setWidgetSettings] = useState<WidgetSettings>(defaultWidgetSettings);
+  const [petSettings, setPetSettings] = useState<PetSettings>(defaultPetSettings);
 
   useEffect(() => {
     loadAllSettings();
   }, []);
 
   const loadAllSettings = async () => {
-    const [lang, audio, headset, notif, lock, adv, widget] = await Promise.all([
+    const [lang, audio, headset, notif, lock, adv, widget, pet] = await Promise.all([
       StorageService.getLanguage(),
       StorageService.getAudioSettings(),
       StorageService.getHeadsetSettings(),
@@ -104,6 +111,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       StorageService.getLockscreenSettings(),
       StorageService.getAdvancedSettings(),
       StorageService.getWidgetSettings(),
+      StorageService.getPetSettings(),
     ]);
 
     setLanguage(lang);
@@ -113,6 +121,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setLockscreenSettings(lock);
     setAdvancedSettings(adv);
     setWidgetSettings(widget);
+    setPetSettings(pet);
   };
 
   // Update Handlers
@@ -151,6 +160,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const updated = { ...widgetSettings, [key]: value };
     setWidgetSettings(updated);
     await StorageService.saveWidgetSettings(updated);
+  };
+
+  const handleUpdatePet = async <K extends keyof PetSettings>(key: K, value: PetSettings[K]) => {
+    const updated = { ...petSettings, [key]: value };
+    setPetSettings(updated);
+    await StorageService.savePetSettings(updated);
+    onSettingsChanged();
   };
 
   const handleSelectLanguage = async (code: string) => {
@@ -240,6 +256,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       title: 'MM lock-screen',
       subtitle: 'Lockscreen player & Full-screen artwork',
       icon: 'lock-closed-outline' as const,
+    },
+    {
+      id: 'pet' as SettingsCategory,
+      title: 'Music Pet Companion',
+      subtitle: `${petSettings.enabled ? 'Active' : 'Disabled'} • ${PET_PROFILES[petSettings.avatar]?.name} (${PET_PROFILES[petSettings.avatar]?.species})`,
+      icon: 'paw-outline' as const,
     },
     {
       id: 'advanced' as SettingsCategory,
@@ -825,7 +847,139 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </View>
         )}
 
-        {/* 9. ADVANCED */}
+        {/* 9. MUSIC PET COMPANION */}
+        {activeCategory === 'pet' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              An interactive offline animated companion that grooves to the beat, reacts to song changes, and dances to your music!
+            </Text>
+
+            {/* Live Pet Preview Stage */}
+            <View style={[styles.petPreviewCard, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+              <MusicPet
+                playbackState={{
+                  isPlaying: true,
+                  position: 10,
+                  duration: 200,
+                  volume: 1,
+                  currentTrack: {
+                    id: 'preview',
+                    title: 'Offline Beat Preview',
+                    artist: 'MM DSP Engine',
+                    album: 'Hi-Fi',
+                    duration: 200,
+                    filename: 'preview.flac',
+                    uri: '',
+                  },
+                  playbackSpeed: 1,
+                  isBuffering: false,
+                  repeatMode: 'all',
+                  isShuffled: false,
+                }}
+                theme={theme}
+                avatar={petSettings.avatar}
+                size="large"
+                showSpeech={true}
+              />
+              <Text style={[styles.petPreviewName, { color: theme.textPrimary }]}>
+                {PET_PROFILES[petSettings.avatar]?.name} ({PET_PROFILES[petSettings.avatar]?.species})
+              </Text>
+              <Text style={[styles.petPreviewBio, { color: theme.textSecondary }]}>
+                {PET_PROFILES[petSettings.avatar]?.personality}
+              </Text>
+            </View>
+
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder, marginTop: 16 }]}>
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Enable Music Pet</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Animated character reacts to rhythm and song transitions
+                  </Text>
+                </View>
+                <Switch
+                  value={petSettings.enabled}
+                  onValueChange={(val) => handleUpdatePet('enabled', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Choose Your Companion</Text>
+              <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                Pick your preferred music avatar and personality
+              </Text>
+
+              <View style={styles.petAvatarRow}>
+                {(['cat', 'fox', 'bunny'] as PetAvatarType[]).map((type) => {
+                  const p = PET_PROFILES[type];
+                  const isSelected = petSettings.avatar === type;
+                  return (
+                    <TactileButton
+                      key={type}
+                      onPress={() => handleUpdatePet('avatar', type)}
+                      style={[
+                        styles.petAvatarBtn,
+                        {
+                          backgroundColor: isSelected ? `${theme.accent}20` : theme.surfaceLight,
+                          borderColor: isSelected ? theme.accent : theme.surfaceBorder,
+                        },
+                      ]}
+                    >
+                      <Text style={{ fontSize: 24 }}>
+                        {type === 'cat' ? '🐱' : type === 'fox' ? '🦊' : '🐰'}
+                      </Text>
+                      <Text style={[styles.petAvatarBtnName, { color: isSelected ? theme.accent : theme.textPrimary }]}>
+                        {p.name}
+                      </Text>
+                      <Text style={[styles.petAvatarBtnSpecies, { color: theme.textSecondary }]}>
+                        {p.species}
+                      </Text>
+                    </TactileButton>
+                  );
+                })}
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Show in Now Playing Screen</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Dance alongside the live 14-band spectrum visualizer
+                  </Text>
+                </View>
+                <Switch
+                  value={petSettings.showOnNowPlaying}
+                  onValueChange={(val) => handleUpdatePet('showOnNowPlaying', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Floating Mini Companion</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Small draggable buddy hanging out on the main library screen
+                  </Text>
+                </View>
+                <Switch
+                  value={petSettings.showFloatingMini}
+                  onValueChange={(val) => handleUpdatePet('showFloatingMini', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 10. ADVANCED */}
         {activeCategory === 'advanced' && (
           <View style={styles.subPageContainer}>
             <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
@@ -1197,5 +1351,48 @@ const styles = StyleSheet.create({
   optionCardTitle: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  petPreviewCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  petPreviewName: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginTop: 8,
+  },
+  petPreviewBio: {
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+  petAvatarRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  petAvatarBtn: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  petAvatarBtnName: {
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  petAvatarBtnSpecies: {
+    fontSize: 10,
+    textAlign: 'center',
   },
 });

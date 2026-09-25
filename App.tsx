@@ -20,11 +20,12 @@ import {
   Playlist,
   PlaybackState,
   AppTheme,
+  PetSettings,
 } from './src/types';
 import { THEMES, DEFAULT_THEME } from './src/constants/theme';
 import { StorageScannerService } from './src/services/storageScanner';
 import { AudioPlayerService } from './src/services/audioPlayer';
-import { StorageService } from './src/services/playlistStorage';
+import { StorageService, defaultPetSettings } from './src/services/playlistStorage';
 import { TactileButton } from './src/components/TactileButton';
 import { TrackListItem } from './src/components/TrackListItem';
 import { MiniPlayer } from './src/components/MiniPlayer';
@@ -46,6 +47,7 @@ import { ThemeSwitcherModal } from './src/components/ThemeSwitcherModal';
 import { CloudSyncModal } from './src/components/CloudSyncModal';
 import { TermsModal } from './src/components/TermsModal';
 import { PrivacyModal } from './src/components/PrivacyModal';
+import { FloatingPetOverlay } from './src/pet/FloatingPetOverlay';
 import { formatFileSize } from './src/utils/formatters';
 
 type MainNavTab = 'library' | 'playlists' | 'search' | 'settings';
@@ -92,6 +94,7 @@ export default function App() {
   const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [petSettings, setPetSettings] = useState<PetSettings>(defaultPetSettings);
   const [tagEditorTrack, setTagEditorTrack] = useState<Track | null>(null);
   const [addTrackToPlaylistTarget, setAddTrackToPlaylistTarget] = useState<Track | null>(null);
 
@@ -124,6 +127,9 @@ export default function App() {
 
     const savedPlaylists = await StorageService.getPlaylists();
     setPlaylists(savedPlaylists);
+
+    const savedPet = await StorageService.getPetSettings();
+    setPetSettings(savedPet);
 
     setIsLoading(false);
 
@@ -655,6 +661,7 @@ export default function App() {
         onClose={() => setNowPlayingOpen(false)}
         playbackState={playbackState}
         theme={theme}
+        petSettings={petSettings}
         onOpenEqualizer={() => setEqualizerOpen(true)}
         onOpenSleepTimer={() => setSleepTimerOpen(true)}
         onOpenQueue={() => setQueueOpen(true)}
@@ -815,6 +822,14 @@ export default function App() {
         visible={privacyOpen}
         onClose={() => setPrivacyOpen(false)}
         theme={theme}
+      />
+
+      {/* Floating Music Pet Companion */}
+      <FloatingPetOverlay
+        playbackState={playbackState}
+        theme={theme}
+        petSettings={petSettings}
+        onOpenNowPlaying={() => setNowPlayingOpen(true)}
       />
     </SafeAreaView>
   );

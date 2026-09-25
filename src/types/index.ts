@@ -130,3 +130,12 @@ export interface WidgetSettings {
   transparentBg: boolean;
   showArtwork: boolean;
 }
+
+export type PetAvatarType = 'cat' | 'fox' | 'bunny';
+
+export interface PetSettings {
+  enabled: boolean;
+  avatar: PetAvatarType;
+  showOnNowPlaying: boolean;
+  showFloatingMini: boolean;
+}
