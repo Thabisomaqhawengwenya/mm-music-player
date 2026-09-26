@@ -1,136 +1,190 @@
-# Offline Local Music Player (Expo / React Native)
+# 🎵 MM Music Player — Offline Audio Player & Screen Companion
 
-A high-fidelity, offline-first mobile music player engineered for playing local audio stored on Android & iOS devices with background playback, full library scanning, custom playlist creation, interactive 5-band equalizer, sleep timer, playback speed control, ID3 metadata editing, and a theme switcher.
+[![Expo](https://img.shields.io/badge/Expo-SDK%2057-000020?style=for-the-badge&logo=expo)](https://expo.dev/)
+[![React Native](https://img.shields.io/badge/React_Native-0.86.3-61DAFB?style=for-the-badge&logo=react)](https://reactnative.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
----
-
-## ✨ Features Implemented
-
-1. **Offline & Local Storage Engine**:
-   - **Auto-Scan Device Storage**: Automatically searches and loads audio files (`.mp3`, `.wav`, `.flac`, `.m4a`, `.aac`, `.ogg`) from Android MediaStore / device folders (`Download/`, `Music/`, SD cards) with `expo-media-library`.
-   - **Manual Document/Folder Picker**: Tap the document icon to import audio files or custom folders directly from local storage with `expo-document-picker`.
-   - **Bundled Hi-Fi Demo Audio**: Pre-configured with sample offline tracks so the app is instantly testable even on emulators without manual file transfers.
-
-2. **Full Playback & Background Audio**:
-   - Background audio playback enabled on Android (`FOREGROUND_SERVICE_MEDIA_PLAYBACK`) and iOS (`UIBackgroundModes: ["audio"]`).
-   - Seamless loop modes: Repeat All, Repeat One, Repeat Off.
-   - Shuffle queue with random distribution.
-   - Variable playback speed: `0.75x`, `1.0x`, `1.25x`, `1.5x`, `2.0x`.
-   - Responsive touch scrubber with time calculation and smooth scrubbing.
-
-3. **Audio Equalizer (EQ) & DSP**:
-   - **5-Band Frequency Sliders**: 60 Hz (Sub-Bass), 230 Hz (Bass), 910 Hz (Mids), 3.6 kHz (High-Mids), 14 kHz (Treble) with dB readouts (`-10dB` to `+10dB`).
-   - **Presets**: Flat, Bass Boost, Vocal Clarity, Electronic, Rock Punch, and Acoustic / Warm.
-   - **Sound Effects**: Dedicated Bass Boost (0–100%) and 3D Virtualizer (0–100%) dials.
-
-4. **Queue & Playlists**:
-   - View currently playing track, reorder or remove tracks from the active queue.
-   - "Save Queue as Playlist" with one tap.
-   - Create and organize unlimited custom offline playlists.
-   - Favorites library (one-tap heart toggle).
-
-5. **Sleep Timer**:
-   - Preset durations: 15m, 30m, 45m, 60m, 90m, or Turn Off.
-   - Live countdown display in Now Playing modal.
-   - Automatically pauses playback when time expires.
-
-6. **Embedded ID3 Tag Editor**:
-   - View and edit Song Title, Artist Name, Album Name, Genre, and Release Year.
-   - Persisted locally with `AsyncStorage`.
-
-7. **Modular & Switchable Design System**:
-   - **OLED Cyber Cyan** (Default): Pure OLED black background (`#07080B`), frosted translucent surfaces, vibrant cyber-cyan accents (`#00E5FF`).
-   - **Midnight Emerald**: Deep obsidian with jade/emerald accents (`#10B981`).
-   - **Analog Hi-Fi Amber**: Classic tape deck & studio hardware aesthetic (`#F59E0B`).
-   - **Cold Slate Titanium**: Refined minimalist monochrome with ice-blue tones (`#93C5FD`).
-   - Tactile spring physics buttons with light haptic feedback (`expo-haptics`).
-
-8. **Cloud Sync & Backup Engine (Optional Offline-First Backend)**:
-   - Delta synchronization of custom playlists, favorites, EQ presets, and edited ID3 metadata.
-   - Built-in secure Node.js/Express server with JWT authentication, bcrypt hashing, rate limiting, and Helmet headers.
-   - Configurable server endpoint (Android emulator `10.0.2.2:4000`, local network IP, or production cloud domain).
-   - Offline resilience: works 100% disconnected; syncs seamlessly when connected.
-
-9. **Multi-View Library & Detail Navigation**:
-   - **4-Tab Bottom Navigation Bar**: Library, Playlists, Search, and Settings with tactile tab switching.
-   - **Library Sub-Views**: Tracks, Albums (2-column square art grid), Artists, Folders, Genres (colored category tiles), and Favorites.
-   - **Album Detail Screen**: Full album hero cover, release year, total runtime, Play All & Shuffle buttons, and numbered tracklist.
-   - **Artist Profile Screen**: Artist avatar, discography album carousel, song counter, and complete song catalog.
-   - **Genre Detail Screen**: Filtered tracks by genre with instant playback.
-   - **Playlist Detail Screen**: Full playlist inspector with track removal, playlist renaming, total duration, and playback.
-
-10. **Enhanced Now Playing & Audio DSP**:
-    - **Live Audio Spectrum Visualizer**: 14 animated dancing bars that react dynamically during active playback.
-    - **Software Volume Slider**: In-player touch volume bar with one-tap mute toggle.
-    - **Lyrics Flip View**: Instant flip between Album Art and an embedded / scrolling lyrics sheet.
-    - **Audio DSP Filters in Settings**: Configurable short-audio filter (e.g. ignore notifications & voice memos <30s), crossfade durations (0s to 8s), and gapless playback toggles.
-
-11. **Dedicated Search & Discovery Hub**:
-    - Instant multi-category query filtering across Tracks, Albums, Artists, and Genres.
-    - Smart quick filters: "Favorites Only", "Long Tracks (>3 mins)", and scope chips ("All", "Tracks", "Albums", "Artists").
+A modern, high-fidelity, **100% offline-first mobile music player** for Android & iOS engineered with Expo, React Native, and TypeScript. Featuring an autonomous **interactive Music Pet companion** that dances, listens, and interacts on your screen while your tracks play.
 
 ---
 
-## 🚀 How to Run the App & Sync Server
+## 🌟 Highlight Features
 
-### 1. Start the Mobile Dev Server
-```bash
-npm start
-# or
-npx expo start
+### 🐾 1. Interactive Music Pet Screen Companion
+An adorable, animated offline pet widget that floats on your screen or inside the Now Playing view, reacting in real-time to your music:
+- **3 Unique Pet Personalities**:
+  - 🐱 **Cadence** (*The Audio Kitty*): Loves deep bass, lo-fi beats, and warm headphones (`#FF6584`).
+  - 🦊 **Tempo** (*The Groove Fox*): Energetic dancer rocking out to synthwave and electric guitar (`#FF9F43`).
+  - 🐰 **Beat** (*The Cyber Bunny*): Fast-paced hopper syncing ear wiggles to EDM drops (`#00D2D3`).
+- **Autonomous Reactions**: Blinking, stretching, yawning, spinning, bouncing, celebrating drops, and sleeping when the music stops.
+- **Audio Energy Sync**: Automatically detects music tempo tiers (*Slow*, *Medium*, *High Energy*) and dynamically syncs dance animations and speech bubbles.
+- **Interactive Touch**: Tap to pet, drag around the screen, or customize visibility in settings.
+
+### 📱 2. Offline-First Audio Engine & Storage Scanner
+- **Zero Internet Required**: Play your entire local audio library without tracking, subscriptions, or data usage.
+- **Auto-Scan Device Storage**: Automatically indexes `.mp3`, `.wav`, `.flac`, `.m4a`, `.aac`, and `.ogg` files via `expo-media-library` across device directories (`Download/`, `Music/`, SD cards).
+- **Document & Folder Import**: Tap the document picker to load individual tracks or external folders via `expo-document-picker`.
+- **Bundled Hi-Fi Demo Tracks**: Ready to test immediately upon launch even on emulators without manual file transfers.
+
+### 🎧 3. High-Fidelity Playback & Background Audio
+- **True Background Playback**:
+  - Android: `FOREGROUND_SERVICE_MEDIA_PLAYBACK` with notification controls.
+  - iOS: Native audio background mode (`UIBackgroundModes: ["audio"]`).
+- **Playback Controls**: Seamless repeat modes (*Off*, *Repeat All*, *Repeat One*), shuffle queue, variable speed playback (`0.75x`, `1.0x`, `1.25x`, `1.5x`, `2.0x`), and responsive touch scrubber.
+- **Floating Mini Player**: Glassmorphic bottom player with spinning vinyl disk artwork and quick controls.
+
+### 🎚️ 4. 5-Band Interactive Equalizer & DSP
+- **5 Precision Frequency Sliders**: 60 Hz (Sub-Bass), 230 Hz (Bass), 910 Hz (Mids), 3.6 kHz (High-Mids), and 14 kHz (Treble) with ±10 dB adjustments.
+- **Built-In Presets**: Flat, Bass Boost, Vocal Clarity, Electronic, Rock Punch, Acoustic / Warm.
+- **Sound Enhancement Dials**: Dedicated Bass Boost (0–100%) and 3D Virtualizer (0–100%) sliders.
+
+### 📊 5. Dynamic Visualizer & Lyrics Sheet
+- **Live Spectrum Visualizer**: 14 animated audio spectrum bars pulsating rhythmically with track tempo.
+- **Lyrics Flip View**: One-tap flip between full album artwork and embedded scrolling song lyrics.
+- **In-App Volume Scrubber**: Fine-grained software volume control with instant mute toggle.
+
+### 📂 6. Multi-View Library Organization
+- **Tracks**: Full searchable track list with duration and file info.
+- **Albums**: 2-column square cover art grid with dedicated album inspector modal.
+- **Artists**: Artist catalog with discography carousel and track counts.
+- **Genres**: Distinct genre cards with filtered instant-play lists.
+- **Folders**: Browse songs hierarchically by physical device folder paths.
+- **Playlists & Favorites**: Create and edit unlimited custom playlists with one-tap favorite toggling.
+
+### 🏷️ 7. Embedded ID3 Tag Editor
+- Edit Song Title, Artist Name, Album Name, Genre, and Release Year directly inside the app.
+- Persisted locally with `@react-native-async-storage/async-storage`.
+
+### ⏱️ 8. Sleep Timer
+- Presets for 15m, 30m, 45m, 60m, 90m, or custom off.
+- Live countdown badge in the Now Playing screen that smoothly pauses playback upon expiry.
+
+### 🎨 9. Premium Theme Switcher
+- **OLED Cyber Cyan** (Default): Pure OLED black (`#07080B`) with neon cyan accents (`#00E5FF`).
+- **Midnight Emerald**: Deep obsidian with rich jade/emerald tones (`#10B981`).
+- **Analog Hi-Fi Amber**: Classic warm tape deck & vintage hardware aesthetic (`#F59E0B`).
+- **Cold Slate Titanium**: Clean minimalist slate with ice-blue accents (`#93C5FD`).
+
+### ☁️ 10. Optional Cloud Backup Server
+- Lightweight Node.js + Express + TypeScript server in `server/`.
+- Secure JWT authentication, bcrypt password hashing, and rate limiting.
+- Offline-first delta sync for playlists, favorites, EQ settings, and metadata backups.
+
+---
+
+## 🏗️ Project Architecture
+
 ```
-
-### Run on Android
-```bash
-npm run android
-```
-*You can also scan the QR code generated by `npx expo start` using the **Expo Go** app on your physical Android phone.*
-
-### Run on Web (Browser Preview)
-```bash
-npm run web
+mm-music-player/
+├── assets/                  # Icons, splash screens, and bundled audio assets
+├── src/
+│   ├── components/          # Reusable UI modals and screen components
+│   │   ├── AlbumDetailModal.tsx
+│   │   ├── AlbumsView.tsx
+│   │   ├── ArtistDetailModal.tsx
+│   │   ├── CloudSyncModal.tsx
+│   │   ├── EqualizerModal.tsx
+│   │   ├── GenreDetailModal.tsx
+│   │   ├── GenresView.tsx
+│   │   ├── MiniPlayer.tsx
+│   │   ├── NowPlayingModal.tsx
+│   │   ├── PlaylistDetailModal.tsx
+│   │   ├── PlaylistModal.tsx
+│   │   ├── PrivacyModal.tsx
+│   │   ├── QueueModal.tsx
+│   │   ├── SearchHubView.tsx
+│   │   ├── SettingsView.tsx
+│   │   ├── SleepTimerModal.tsx
+│   │   ├── TactileButton.tsx
+│   │   ├── TagEditorModal.tsx
+│   │   ├── TermsModal.tsx
+│   │   ├── ThemeSwitcherModal.tsx
+│   │   └── TrackListItem.tsx
+│   ├── constants/           # Color palettes, theme tokens, and typography
+│   ├── pet/                 # Interactive Music Pet screen companion
+│   │   ├── FloatingPetOverlay.tsx
+│   │   ├── MusicPet.tsx
+│   │   ├── PetBehaviorEngine.ts
+│   │   └── types.ts
+│   ├── services/            # Audio engine, scanner, storage & cloud sync
+│   │   ├── audioPlayer.ts
+│   │   ├── playlistStorage.ts
+│   │   ├── storageScanner.ts
+│   │   └── syncClient.ts
+│   └── types/               # TypeScript models & state interfaces
+├── server/                  # Optional standalone Express sync server
+│   ├── src/
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   └── server.ts
+│   └── package.json
+├── App.tsx                  # App root, navigation controllers & tab router
+├── app.json                 # Expo project configuration & native permissions
+├── package.json             # App dependencies and run scripts
+├── PRIVACY_POLICY.md        # Comprehensive 27-section privacy policy
+├── TERMS_AND_CONDITIONS.md  # Complete in-app terms & conditions
+└── tsconfig.json            # TypeScript configuration
 ```
 
 ---
 
-### 2. Start the Cloud Sync Server (Optional)
-In a separate terminal:
+## 🚀 Getting Started
+
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v18 or higher recommended)
+- [npm](https://www.npmjs.com/) or [bun](https://bun.sh/)
+- [Expo Go](https://expo.dev/go) app on your physical iOS/Android device or an Android/iOS emulator
+
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Thabisomaqhawengwenya/mm-music-player.git
+   cd mm-music-player
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Start the Expo development server**:
+   ```bash
+   npx expo start
+   ```
+
+4. **Launch on your device**:
+   - **Android Emulator / Device**: Press `a` or run `npm run android`
+   - **iOS Simulator**: Press `i` or run `npm run ios`
+   - **Expo Go App**: Scan the terminal QR code with your phone camera (iOS) or the Expo Go app (Android).
+   - **Web Browser Preview**: Press `w` or run `npm run web`
+
+---
+
+## 🌐 Running the Cloud Sync Server (Optional)
+
+If you wish to host the companion delta-sync server:
+
 ```bash
 cd server
 npm install
 npm run dev
 ```
-The server will start listening at `http://localhost:4000` (or `http://10.0.2.2:4000` from Android emulator). Check health at `http://localhost:4000/health`.
+The server will start listening at `http://localhost:4000` (or `http://10.0.2.2:4000` from Android Emulator). Test health at `http://localhost:4000/health`.
 
 ---
 
-## 📁 Project Architecture
+## 📜 Permissions Used
 
-- `App.tsx`: Main entry point orchestrating 4-tab bottom navigation, library sub-views, modal controllers, and mini player.
-- `src/types/index.ts`: TypeScript interfaces for tracks, albums, artists, genres, audio settings, playback states, playlists, equalizer presets, and themes.
-- `src/constants/theme.ts`: Design system tokens and multiple aesthetic themes.
-- `src/services/audioPlayer.ts`: Singleton audio playback engine managing `expo-audio`, background mode, queue, volume, and sleep timer.
-- `src/services/storageScanner.ts`: Media library scanner, document picker, album/artist/genre groupers, and audio settings filters.
-- `src/services/playlistStorage.ts`: Local persistent storage for playlists, favorites, metadata overrides, EQ settings, and audio preferences.
-- `src/services/syncClient.ts`: Offline-first delta synchronization and cloud backup client.
-- `src/components/`:
-  - `MiniPlayer.tsx`: Bottom floating glassmorphic player with rotating vinyl art and progress bar.
-  - `NowPlayingModal.tsx`: Full-screen player with live audio spectrum visualizer, volume bar, lyrics flip sheet, interactive scrubber, and playback controls.
-  - `AlbumsView.tsx`: 2-column album art grid with track badges.
-  - `AlbumDetailModal.tsx`: Album hero header, tracklist, and Play All / Shuffle actions.
-  - `ArtistDetailModal.tsx`: Artist profile with discography carousel and all songs.
-  - `GenresView.tsx`: Category cards with genre icons and distinct tints.
-  - `GenreDetailModal.tsx`: Genre tracklist view with playback controls.
-  - `PlaylistDetailModal.tsx`: Custom playlist manager with track removal, song count, and playlist renaming.
-  - `SearchHubView.tsx`: Global search hub with scope chips and smart filters.
-  - `SettingsView.tsx`: Audio DSP options, min duration filter, theme switcher, storage scanner, and cloud sync trigger.
-  - `EqualizerModal.tsx`: 5-band interactive EQ sliders, DSP bass boost, and presets.
-  - `SleepTimerModal.tsx`: Sleep timer selector with live countdown.
-  - `QueueModal.tsx`: Real-time playback queue with "Save as Playlist".
-  - `PlaylistModal.tsx`: Playlist creator and track assigner.
-  - `TagEditorModal.tsx`: ID3 metadata viewer and editor.
-  - `ThemeSwitcherModal.tsx`: Theme switcher modal.
-  - `CloudSyncModal.tsx`: Account authentication, server endpoint configuration, and delta sync dashboard.
-  - `TrackListItem.tsx`: High-performance track row with action menu.
-  - `TactileButton.tsx`: Spring-pressable button with haptics.
-- `server/`: Standalone Express & TypeScript synchronization server.
+- **`READ_MEDIA_AUDIO` / `READ_EXTERNAL_STORAGE`**: To scan and load audio files from local device storage.
+- **`FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PLAYBACK`**: For seamless audio playback when the app is minimized or the screen is locked.
+- **`VIBRATE`**: For subtle tactile haptic responses during user interactions.
+
+---
+
+## 📄 License & Legal
+
+- **Code License**: [MIT License](LICENSE)
+- **Privacy Policy**: [PRIVACY_POLICY.md](PRIVACY_POLICY.md)
+- **Terms & Conditions**: [TERMS_AND_CONDITIONS.md](TERMS_AND_CONDITIONS.md)
