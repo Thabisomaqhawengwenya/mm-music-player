@@ -49,11 +49,10 @@ import { VibesHubView } from './src/components/VibesHubView';
 import { SettingsView } from './src/components/SettingsView';
 import { TagEditorModal } from './src/components/TagEditorModal';
 import { ThemeSwitcherModal } from './src/components/ThemeSwitcherModal';
-import { CloudSyncModal } from './src/components/CloudSyncModal';
 import { TermsModal } from './src/components/TermsModal';
 import { PrivacyModal } from './src/components/PrivacyModal';
 import { FloatingPetOverlay } from './src/pet/FloatingPetOverlay';
-import { FloatingGlassNavBar } from './src/components/FloatingGlassNavBar';
+import { AudioDockNavBar } from './src/components/AudioDockNavBar';
 import { formatFileSize } from './src/utils/formatters';
 
 type MainNavTab = 'library' | 'playlists' | 'vibes' | 'settings';
@@ -97,7 +96,6 @@ export default function App() {
   const [queueOpen, setQueueOpen] = useState(false);
   const [playlistsOpen, setPlaylistsOpen] = useState(false);
   const [themeSwitcherOpen, setThemeSwitcherOpen] = useState(false);
-  const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [petSettings, setPetSettings] = useState<PetSettings>(defaultPetSettings);
@@ -299,12 +297,12 @@ export default function App() {
           </View>
 
           <View style={styles.headerButtonsRow}>
-            {/* Cloud Sync shortcut */}
+            {/* Theme Switcher shortcut */}
             <TactileButton
-              onPress={() => setCloudSyncOpen(true)}
+              onPress={() => setThemeSwitcherOpen(true)}
               style={[styles.headerIconBtn, { backgroundColor: theme.surfaceLight }]}
             >
-              <Ionicons name="cloud-outline" size={20} color={theme.accent} />
+              <Ionicons name="color-palette-outline" size={20} color={theme.accent} />
             </TactileButton>
 
             {/* Quick Rescan */}
@@ -607,7 +605,6 @@ export default function App() {
             playerCustomization={playerCustomization}
             onUpdatePlayerCustomization={handleUpdatePlayerCustomization}
             onThemeChanged={(newTheme) => setTheme(newTheme)}
-            onOpenCloudSync={() => setCloudSyncOpen(true)}
             onOpenTerms={() => setTermsOpen(true)}
             onOpenPrivacy={() => setPrivacyOpen(true)}
             onOpenEqualizer={() => setEqualizerOpen(true)}
@@ -630,10 +627,26 @@ export default function App() {
         />
       )}
 
-      {/* Floating Glassmorphic Island Navigation Bar */}
-      <FloatingGlassNavBar
+      {/* Reference Image Dock Navigation Bar */}
+      <AudioDockNavBar
         activeTab={mainTab}
-        onSelectTab={(tab) => setMainTab(tab)}
+        librarySubTab={librarySubTab}
+        isPlaying={playbackState.isPlaying}
+        onSelectTab={(tab, subTab) => {
+          setMainTab(tab);
+          if (subTab) setLibrarySubTab(subTab);
+        }}
+        onTogglePlayPause={() => player.togglePlayPause()}
+        onOpenQueue={() => setQueueOpen(true)}
+        onOpenTagEditor={() => {
+          if (playbackState.currentTrack) {
+            setTagEditorTrack(playbackState.currentTrack);
+          } else if (tracks.length > 0) {
+            setTagEditorTrack(tracks[0]);
+          }
+        }}
+        onOpenNowPlaying={() => setNowPlayingOpen(true)}
+        onOpenMoreMenu={() => setMainTab('settings')}
         theme={theme}
       />
 
@@ -786,18 +799,6 @@ export default function App() {
         onClose={() => setThemeSwitcherOpen(false)}
         currentTheme={theme}
         onThemeChanged={(newTheme) => setTheme(newTheme)}
-      />
-
-      {/* Cloud Sync & Backup Modal */}
-      <CloudSyncModal
-        visible={cloudSyncOpen}
-        onClose={() => setCloudSyncOpen(false)}
-        theme={theme}
-        onSyncCompleted={async () => {
-          const id = await StorageService.getThemeId();
-          if (THEMES[id]) setTheme(THEMES[id]);
-          loadInitialData();
-        }}
       />
 
       {/* Terms & Conditions Modal */}

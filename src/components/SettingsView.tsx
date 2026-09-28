@@ -64,7 +64,6 @@ interface SettingsViewProps {
   playerCustomization?: PlayerCustomizationSettings;
   onUpdatePlayerCustomization?: (newSettings: PlayerCustomizationSettings) => void;
   onThemeChanged: (newTheme: AppTheme) => void;
-  onOpenCloudSync: () => void;
   onOpenTerms: () => void;
   onOpenPrivacy: () => void;
   onScanDevice: () => void;
@@ -88,7 +87,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   playerCustomization: propCustomization,
   onUpdatePlayerCustomization,
   onThemeChanged,
-  onOpenCloudSync,
   onOpenTerms,
   onOpenPrivacy,
   onScanDevice,
@@ -1475,23 +1473,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {activeCategory === 'backup' && (
           <View style={styles.subPageContainer}>
             <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
-              Sync your music playlists and metadata with your private cloud server, or export local JSON backup files.
+              Backup and restore your playlists, favorites, and player preferences via local offline JSON files.
             </Text>
 
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
-              <TactileButton onPress={onOpenCloudSync} style={styles.actionRowBtn}>
-                <Ionicons name="cloud-done-outline" size={22} color={theme.accent} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Cloud Sync Dashboard</Text>
-                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
-                    Automated delta synchronization with private cloud
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-              </TactileButton>
-
-              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
-
               <TactileButton onPress={handleExportBackup} style={styles.actionRowBtn}>
                 <Ionicons name="share-outline" size={22} color={theme.accent} />
                 <View style={{ flex: 1 }}>
