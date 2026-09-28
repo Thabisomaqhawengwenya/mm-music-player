@@ -45,7 +45,7 @@ import { ArtistDetailModal } from './src/components/ArtistDetailModal';
 import { GenreDetailModal } from './src/components/GenreDetailModal';
 import { AlbumsView } from './src/components/AlbumsView';
 import { GenresView } from './src/components/GenresView';
-import { SearchHubView } from './src/components/SearchHubView';
+import { VibesHubView } from './src/components/VibesHubView';
 import { SettingsView } from './src/components/SettingsView';
 import { TagEditorModal } from './src/components/TagEditorModal';
 import { ThemeSwitcherModal } from './src/components/ThemeSwitcherModal';
@@ -56,7 +56,7 @@ import { FloatingPetOverlay } from './src/pet/FloatingPetOverlay';
 import { FloatingGlassNavBar } from './src/components/FloatingGlassNavBar';
 import { formatFileSize } from './src/utils/formatters';
 
-type MainNavTab = 'library' | 'playlists' | 'search' | 'settings';
+type MainNavTab = 'library' | 'playlists' | 'vibes' | 'settings';
 type LibrarySubTab = 'tracks' | 'albums' | 'artists' | 'folders' | 'genres' | 'favorites';
 
 export default function App() {
@@ -588,23 +588,17 @@ export default function App() {
               }
             />
           </View>
-        ) : mainTab === 'search' ? (
-          /* SEARCH HUB TAB */
-          <SearchHubView
+        ) : mainTab === 'vibes' ? (
+          /* VIBES HUB TAB - SMART OFFLINE SESSIONS */
+          <VibesHubView
             tracks={tracks}
-            albums={albums}
-            artists={artists}
             theme={theme}
             currentTrackId={playbackState.currentTrack?.id}
             isPlaying={playbackState.isPlaying}
-            onPlayTrack={handlePlayTrack}
-            onSelectAlbum={(alb) => setSelectedAlbum(alb)}
-            onSelectArtist={(art) => setSelectedArtist(art)}
+            onPlayTrack={(t, list) => handlePlayTrack(t, list || tracks)}
             onToggleFavorite={handleToggleFavorite}
             onPlayNext={handlePlayNext}
             onAddToQueue={handleAddToQueue}
-            onAddToPlaylist={handleAddToPlaylist}
-            onEditTags={handleEditTags}
           />
         ) : (
           /* SETTINGS TAB */

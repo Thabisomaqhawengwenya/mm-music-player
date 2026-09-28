@@ -52,7 +52,7 @@ interface NowPlayingModalProps {
   onOpenQueue: () => void;
   onOpenTagEditor: (track: Track) => void;
   onToggleFavorite: (trackId: string) => void;
-  onNavigateToTab?: (tab: 'library' | 'playlists' | 'search' | 'settings', subTab?: string) => void;
+  onNavigateToTab?: (tab: 'library' | 'playlists' | 'vibes' | 'settings', subTab?: string) => void;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -605,16 +605,16 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
               <Ionicons name="musical-notes-outline" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
 
-            {/* 8. Search */}
+            {/* 8. Vibes */}
             <TouchableOpacity
               onPress={() => {
                 onClose();
-                if (onNavigateToTab) onNavigateToTab('search');
+                if (onNavigateToTab) onNavigateToTab('vibes');
               }}
               style={styles.quickNavBtn}
               activeOpacity={0.7}
             >
-              <Ionicons name="search-outline" size={20} color={theme.textSecondary} />
+              <Ionicons name="sparkles-outline" size={20} color={theme.accent} />
             </TouchableOpacity>
 
             {/* 9. More Options */}

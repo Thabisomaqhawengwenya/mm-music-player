@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { AppTheme } from '../types';
 
-export type MainNavTab = 'library' | 'playlists' | 'search' | 'settings';
+export type MainNavTab = 'library' | 'playlists' | 'vibes' | 'settings';
 
 interface TabItemConfig {
   key: MainNavTab;
@@ -24,7 +24,7 @@ interface TabItemConfig {
 const TABS: TabItemConfig[] = [
   { key: 'library', label: 'Library', icon: 'library-outline', activeIcon: 'library' },
   { key: 'playlists', label: 'Playlists', icon: 'musical-notes-outline', activeIcon: 'musical-notes' },
-  { key: 'search', label: 'Search', icon: 'search-outline', activeIcon: 'search' },
+  { key: 'vibes', label: 'Vibes', icon: 'sparkles-outline', activeIcon: 'sparkles' },
   { key: 'settings', label: 'Settings', icon: 'settings-outline', activeIcon: 'settings' },
 ];
 
