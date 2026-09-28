@@ -7,8 +7,11 @@ import {
   ActionSheetIOS,
   Platform,
   Alert,
+  TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Track, AppTheme } from '../types';
 import { TactileButton } from './TactileButton';
 import { formatTime } from '../utils/formatters';
@@ -40,6 +43,23 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
   onAddToPlaylist,
   onEditTags,
 }) => {
+  const heartScaleAnim = React.useRef(new Animated.Value(1)).current;
+  const triggerHeartAnimation = () => {
+    Animated.sequence([
+      Animated.timing(heartScaleAnim, {
+        toValue: 1.35,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(heartScaleAnim, {
+        toValue: 1,
+        friction: 4,
+        tension: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   const handleMoreOptions = () => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -135,16 +155,26 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
       </TactileButton>
 
       {/* Favorite Button */}
-      <TactileButton
-        onPress={() => onToggleFavorite(track.id)}
+      <TouchableOpacity
+        activeOpacity={0.7}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        onPress={() => {
+          triggerHeartAnimation();
+          try {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          } catch {}
+          onToggleFavorite(track.id);
+        }}
         style={styles.actionBtn}
       >
-        <Ionicons
-          name={track.isFavorite ? 'heart' : 'heart-outline'}
-          size={18}
-          color={track.isFavorite ? theme.danger : theme.textTertiary}
-        />
-      </TactileButton>
+        <Animated.View style={{ transform: [{ scale: heartScaleAnim }] }}>
+          <Ionicons
+            name={track.isFavorite ? 'heart' : 'heart-outline'}
+            size={18}
+            color={track.isFavorite ? '#FF2D55' : theme.textTertiary}
+          />
+        </Animated.View>
+      </TouchableOpacity>
 
       {/* Options Menu Button */}
       <TactileButton

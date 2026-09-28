@@ -103,6 +103,24 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
     }
   }, [volume, isScrubbing, playbackState.isPlaying]);
 
+  // Heart pop animation
+  const heartScaleAnim = useRef(new Animated.Value(1)).current;
+  const triggerHeartAnimation = () => {
+    Animated.sequence([
+      Animated.timing(heartScaleAnim, {
+        toValue: 1.35,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.spring(heartScaleAnim, {
+        toValue: 1,
+        friction: 4,
+        tension: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   // Artwork pulsing animation
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -400,16 +418,26 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
               </Text>
             </View>
 
-            <TactileButton
-              onPress={() => onToggleFavorite(track.id)}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+              onPress={() => {
+                triggerHeartAnimation();
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                } catch {}
+                onToggleFavorite(track.id);
+              }}
               style={styles.favButton}
             >
-              <Ionicons
-                name={track.isFavorite ? 'heart' : 'heart-outline'}
-                size={26}
-                color={track.isFavorite ? theme.danger : theme.textTertiary}
-              />
-            </TactileButton>
+              <Animated.View style={{ transform: [{ scale: heartScaleAnim }] }}>
+                <Ionicons
+                  name={track.isFavorite ? 'heart' : 'heart-outline'}
+                  size={26}
+                  color={track.isFavorite ? '#FF2D55' : theme.textTertiary}
+                />
+              </Animated.View>
+            </TouchableOpacity>
           </View>
 
           {/* Tactile Waveform Scrubber */}

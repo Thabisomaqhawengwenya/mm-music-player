@@ -407,13 +407,18 @@ export const VibesHubView: React.FC<VibesHubViewProps> = ({
                 {/* Actions */}
                 <View style={styles.trackActionsRow}>
                   <TouchableOpacity
-                    onPress={() => onToggleFavorite(item.id)}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                      onToggleFavorite(item.id);
+                    }}
                     style={styles.actionBtn}
                   >
                     <Ionicons
                       name={item.isFavorite ? 'heart' : 'heart-outline'}
                       size={18}
-                      color={item.isFavorite ? '#ef4444' : theme.textTertiary}
+                      color={item.isFavorite ? '#FF2D55' : theme.textTertiary}
                     />
                   </TouchableOpacity>
 

@@ -81,6 +81,15 @@ export class AudioPlayerService {
     return this.currentIndex;
   }
 
+  public updateTrackFavorite(trackId: string, isFavorite: boolean) {
+    if (this.state.currentTrack && this.state.currentTrack.id === trackId) {
+      this.state.currentTrack = { ...this.state.currentTrack, isFavorite };
+    }
+    this.queue = this.queue.map((t) => (t.id === trackId ? { ...t, isFavorite } : t));
+    this.originalQueue = this.originalQueue.map((t) => (t.id === trackId ? { ...t, isFavorite } : t));
+    this.notify();
+  }
+
   public setQueue(tracks: Track[], startIndex: number = 0) {
     this.originalQueue = [...tracks];
     if (this.state.isShuffled) {

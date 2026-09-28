@@ -12,8 +12,10 @@
         "UIBackgroundModes": [
           "audio"
         ],
-        "NSAppleMusicUsageDescription": "Allows access to your local music library to play offline audio tracks."
-      }
+        "NSAppleMusicUsageDescription": "Allows access to your local music library to play offline audio tracks.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.maqhawengwenya.mm"
     },
     "android": {
       "package": "com.maqhawengwenya.mm",

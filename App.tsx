@@ -201,6 +201,16 @@ export default function App() {
     setTracks((prev) =>
       prev.map((t) => (t.id === trackId ? { ...t, isFavorite: isFav } : t))
     );
+    player.updateTrackFavorite(trackId, isFav);
+    setPlaybackState((prev) => {
+      if (prev.currentTrack?.id === trackId) {
+        return {
+          ...prev,
+          currentTrack: { ...prev.currentTrack, isFavorite: isFav },
+        };
+      }
+      return prev;
+    });
   };
 
   const handlePlayTrack = (track: Track, contextList: Track[]) => {
