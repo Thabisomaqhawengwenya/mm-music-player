@@ -13,13 +13,15 @@ A modern, high-fidelity, **100% offline-first mobile music player** for Android 
 
 ### 🐾 1. Interactive Music Pet Screen Companion
 An adorable, animated offline pet widget that floats on your screen or inside the Now Playing view, reacting in real-time to your music:
-- **3 Unique Pet Personalities**:
+- **4 Unique Pet Personalities**:
   - 🐱 **Cadence** (*The Audio Kitty*): Loves deep bass, lo-fi beats, and warm headphones (`#FF6584`).
   - 🦊 **Tempo** (*The Groove Fox*): Energetic dancer rocking out to synthwave and electric guitar (`#FF9F43`).
   - 🐰 **Beat** (*The Cyber Bunny*): Fast-paced hopper syncing ear wiggles to EDM drops (`#00D2D3`).
+  - ✧ **Moji** (*The Kaomoji Cloud*): Expressive ASCII beat-hopper with living text faces and emotions (`#A29BFE`).
+- **Interactive Kaomoji Reactions**: Tap animated Japanese emoticons like `(ﾉ^_^)ﾉ`, `٩(ˊᗜˋ*)و`, `(˘ᵕ˘ )♪`, `(ง •̀_•́)ง`, `(≧◡≦) ♡`, and `ദ്ദി(˵•̀ᴗ-˵)` to trigger immediate celebratory dance handoffs, speech reactions, and affection boosts.
 - **Autonomous Reactions**: Blinking, stretching, yawning, spinning, bouncing, celebrating drops, and sleeping when the music stops.
 - **Audio Energy Sync**: Automatically detects music tempo tiers (*Slow*, *Medium*, *High Energy*) and dynamically syncs dance animations and speech bubbles.
-- **Interactive Touch**: Tap to pet, drag around the screen, or customize visibility in settings.
+- **Interactive Touch**: Tap to pet, drag around the screen, feed treats, or customize visibility in settings.
 
 ### 📱 2. Offline-First Audio Engine & Storage Scanner
 - **Zero Internet Required**: Play your entire local audio library without tracking, subscriptions, or data usage.

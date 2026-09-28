@@ -21,11 +21,16 @@ import {
   PlaybackState,
   AppTheme,
   PetSettings,
+  PlayerCustomizationSettings,
 } from './src/types';
 import { THEMES, DEFAULT_THEME } from './src/constants/theme';
 import { StorageScannerService } from './src/services/storageScanner';
 import { AudioPlayerService } from './src/services/audioPlayer';
-import { StorageService, defaultPetSettings } from './src/services/playlistStorage';
+import {
+  StorageService,
+  defaultPetSettings,
+  defaultPlayerCustomizationSettings,
+} from './src/services/playlistStorage';
 import { TactileButton } from './src/components/TactileButton';
 import { TrackListItem } from './src/components/TrackListItem';
 import { MiniPlayer } from './src/components/MiniPlayer';
@@ -95,6 +100,9 @@ export default function App() {
   const [termsOpen, setTermsOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [petSettings, setPetSettings] = useState<PetSettings>(defaultPetSettings);
+  const [playerCustomization, setPlayerCustomization] = useState<PlayerCustomizationSettings>(
+    defaultPlayerCustomizationSettings
+  );
   const [tagEditorTrack, setTagEditorTrack] = useState<Track | null>(null);
   const [addTrackToPlaylistTarget, setAddTrackToPlaylistTarget] = useState<Track | null>(null);
 
@@ -125,17 +133,29 @@ export default function App() {
     setTracks(result.tracks);
     setPermissionGranted(result.permissionGranted);
 
-    const savedPlaylists = await StorageService.getPlaylists();
-    setPlaylists(savedPlaylists);
+    const [savedPlaylists, savedPet, savedCustomization] = await Promise.all([
+      StorageService.getPlaylists(),
+      StorageService.getPetSettings(),
+      StorageService.getPlayerCustomizationSettings(),
+    ]);
 
-    const savedPet = await StorageService.getPetSettings();
+    setPlaylists(savedPlaylists);
     setPetSettings(savedPet);
+    setPlayerCustomization(savedCustomization);
 
     setIsLoading(false);
 
     if (result.tracks.length > 0 && player.getQueue().length === 0) {
       player.setQueue(result.tracks, 0);
     }
+  };
+
+  const handleUpdatePlayerCustomization = async (updated: Partial<PlayerCustomizationSettings>) => {
+    setPlayerCustomization((prev) => {
+      const merged = { ...prev, ...updated };
+      StorageService.savePlayerCustomizationSettings(merged);
+      return merged;
+    });
   };
 
   const refreshPlaylists = async () => {
@@ -257,8 +277,9 @@ export default function App() {
   );
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle="light-content" />
+    <View style={[styles.outerContainer, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
+        <StatusBar barStyle="light-content" />
 
       {/* Main Screen Header */}
       {mainTab !== 'settings' && (
@@ -588,6 +609,8 @@ export default function App() {
           /* SETTINGS TAB */
           <SettingsView
             theme={theme}
+            playerCustomization={playerCustomization}
+            onUpdatePlayerCustomization={handleUpdatePlayerCustomization}
             onThemeChanged={(newTheme) => setTheme(newTheme)}
             onOpenCloudSync={() => setCloudSyncOpen(true)}
             onOpenTerms={() => setTermsOpen(true)}
@@ -612,13 +635,13 @@ export default function App() {
         />
       )}
 
-      {/* Persistent Bottom Navigation Bar */}
+      {/* Persistent Bottom Navigation Bar - Aligned to Reference Image 1 */}
       <View
         style={[
           styles.bottomNavBar,
           {
-            backgroundColor: theme.surface,
-            borderTopColor: theme.surfaceBorder,
+            backgroundColor: theme.id === 'light' ? theme.surface : '#080b11',
+            borderTopColor: theme.id === 'light' ? theme.surfaceBorder : '#161c28',
           },
         ]}
       >
@@ -629,21 +652,36 @@ export default function App() {
           { key: 'settings', label: 'Settings', icon: 'settings-outline', activeIcon: 'settings' },
         ].map((tab) => {
           const isActive = mainTab === tab.key;
+          const activeCyan = '#00e5ff';
+          const inactiveColor = '#728096';
+
           return (
             <TactileButton
               key={tab.key}
               onPress={() => setMainTab(tab.key as MainNavTab)}
               style={styles.navTabBtn}
             >
-              <Ionicons
-                name={(isActive ? tab.activeIcon : tab.icon) as any}
-                size={22}
-                color={isActive ? theme.accent : theme.textTertiary}
-              />
+              <View
+                style={[
+                  styles.navIconBox,
+                  isActive && {
+                    backgroundColor: 'rgba(0, 229, 255, 0.12)',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={(isActive ? tab.activeIcon : tab.icon) as any}
+                  size={23}
+                  color={isActive ? activeCyan : inactiveColor}
+                />
+              </View>
               <Text
                 style={[
                   styles.navTabLabel,
-                  { color: isActive ? theme.accent : theme.textTertiary },
+                  {
+                    color: isActive ? activeCyan : inactiveColor,
+                    fontWeight: isActive ? '800' : '600',
+                  },
                 ]}
               >
                 {tab.label}
@@ -662,6 +700,12 @@ export default function App() {
         playbackState={playbackState}
         theme={theme}
         petSettings={petSettings}
+        playerCustomization={playerCustomization}
+        onUpdatePlayerCustomization={handleUpdatePlayerCustomization}
+        onNavigateToTab={(tab) => {
+          setNowPlayingOpen(false);
+          setMainTab(tab);
+        }}
         onOpenEqualizer={() => setEqualizerOpen(true)}
         onOpenSleepTimer={() => setSleepTimerOpen(true)}
         onOpenQueue={() => setQueueOpen(true)}
@@ -832,12 +876,21 @@ export default function App() {
         onOpenNowPlaying={() => setNowPlayingOpen(true)}
       />
     </SafeAreaView>
+  </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   root: {
     flex: 1,
+    width: '100%',
+    maxWidth: 580,
   },
   header: {
     flexDirection: 'row',
@@ -1029,20 +1082,28 @@ const styles = StyleSheet.create({
   bottomNavBar: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    paddingBottom: 6,
     paddingTop: 8,
+    paddingBottom: 10,
     justifyContent: 'space-around',
     alignItems: 'center',
+    minHeight: 64,
   },
   navTabBtn: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    gap: 3,
+    paddingVertical: 2,
+    gap: 4,
+  },
+  navIconBox: {
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navTabLabel: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
     letterSpacing: 0.3,
   },
 });

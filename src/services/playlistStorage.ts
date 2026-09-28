@@ -9,6 +9,7 @@ import {
   AdvancedSettings,
   WidgetSettings,
   PetSettings,
+  PlayerCustomizationSettings,
 } from '../types';
 
 const STORAGE_KEYS = {
@@ -27,13 +28,29 @@ const STORAGE_KEYS = {
   ADVANCED_SETTINGS: '@mm_music_advanced_settings',
   WIDGET_SETTINGS: '@mm_music_widget_settings',
   PET_SETTINGS: '@mm_music_pet_settings',
+  PLAYER_CUSTOMIZATION: '@mm_music_player_customization',
 };
 
-export const defaultPetSettings = {
+export const defaultPlayerCustomizationSettings: PlayerCustomizationSettings = {
+  backgroundType: 'default',
+  backgroundBlur: 12,
+  backgroundDim: 0.65,
+  enableCharacter: true,
+  enableCharacterMotion: true,
+  enableVisualizer: true,
+  enableArtworkAnimation: true,
+  enableBackgroundAmbiance: true,
+};
+
+export const defaultPetSettings: PetSettings = {
   enabled: true,
-  avatar: 'cat' as const,
+  avatar: 'human_aria' as const,
   showOnNowPlaying: true,
   showFloatingMini: true,
+  accessory: 'none',
+  affection: 50,
+  treatsCount: 6,
+  emotionOverride: null,
 };
 
 export const defaultAudioSettings = {
@@ -490,6 +507,25 @@ export class StorageService {
     }
   }
 
+  static async getPlayerCustomizationSettings(): Promise<PlayerCustomizationSettings> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.PLAYER_CUSTOMIZATION);
+      return data ? { ...defaultPlayerCustomizationSettings, ...JSON.parse(data) } : defaultPlayerCustomizationSettings;
+    } catch {
+      return defaultPlayerCustomizationSettings;
+    }
+  }
+
+  static async savePlayerCustomizationSettings(settings: Partial<PlayerCustomizationSettings>): Promise<void> {
+    try {
+      const current = await this.getPlayerCustomizationSettings();
+      const updated = { ...current, ...settings };
+      await AsyncStorage.setItem(STORAGE_KEYS.PLAYER_CUSTOMIZATION, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save player customization settings', e);
+    }
+  }
+
   static async resetAllSettings(): Promise<void> {
     await this.saveAudioSettings(defaultAudioSettings);
     await this.saveHeadsetSettings(defaultHeadsetSettings);
@@ -498,5 +534,6 @@ export class StorageService {
     await this.saveAdvancedSettings(defaultAdvancedSettings);
     await this.saveWidgetSettings(defaultWidgetSettings);
     await this.savePetSettings(defaultPetSettings);
+    await this.savePlayerCustomizationSettings(defaultPlayerCustomizationSettings);
   }
 }

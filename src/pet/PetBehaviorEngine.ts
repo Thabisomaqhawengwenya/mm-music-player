@@ -5,13 +5,14 @@ import {
   MusicEnergyTier,
   PetMusicAnalysis,
   PetEngineState,
+  MascotEmotion,
 } from './types';
 
 export class PetBehaviorEngine {
   private currentState: PetState = 'idle';
   private currentAction: PetAutonomousAction = 'none';
-  private speechText: string | null = null;
-  private moodEmoji: string = '🎧';
+  private currentEmotion: MascotEmotion = 'happy';
+  private emoteIcon: string | null = '🎧';
 
   private lastInteractionTime: number = Date.now();
   private lastTrackId: string | null = null;
@@ -52,9 +53,10 @@ export class PetBehaviorEngine {
       this.onStateChangeCallback({
         state: this.currentState,
         action: this.currentAction,
-        speechText: this.speechText,
-        moodEmoji: this.moodEmoji,
-        isSleeping: this.currentState === 'inactive',
+        emotion: this.currentEmotion,
+        emoteIcon: this.emoteIcon,
+        speechText: null, // No dialogue or speech text
+        isSleeping: this.currentState === 'inactive' || this.currentEmotion === 'sleepy',
       });
     }
   }
@@ -70,7 +72,7 @@ export class PetBehaviorEngine {
     const genre = (track.genre || '').toLowerCase();
     const combined = `${title} ${artist} ${genre}`;
 
-    // Slow detection
+    // Slow / chill detection
     const isSlow =
       combined.includes('acoustic') ||
       combined.includes('chill') ||
@@ -119,25 +121,31 @@ export class PetBehaviorEngine {
 
   // --- Main Update Loop Driven by Player State ---
   public updatePlayerState(playbackState: PlaybackState) {
-    const { isPlaying, currentTrack, position, duration } = playbackState;
+    const { isPlaying, currentTrack, position, duration, volume } = playbackState;
 
-    // 1. Detect Track Change
+    // Volume 0 reaction -> sad
+    if (volume === 0) {
+      this.setMascotState('paused', 'none', 'sad', '💧');
+      return;
+    }
+
+    // 1. Detect Track Change -> surprised
     if (currentTrack && currentTrack.id !== this.lastTrackId) {
       if (this.lastTrackId !== null) {
-        this.triggerSongChanged(currentTrack);
+        this.triggerSongChanged();
       }
       this.lastTrackId = currentTrack.id;
       this.lastInteractionTime = Date.now();
       return;
     }
 
-    // 2. Detect Song Finished
+    // 2. Detect Song Finished -> excited celebration
     if (isPlaying && duration > 5 && position >= duration - 1.2) {
       this.triggerSongFinished();
       return;
     }
 
-    // If currently playing a temporary reaction (song changed, tap, finished), wait for it to conclude
+    // If currently displaying a temporary transient reaction, let it finish
     if (this.isTransientState) {
       return;
     }
@@ -148,28 +156,30 @@ export class PetBehaviorEngine {
       const analysis = this.analyzeMusic(currentTrack);
 
       if (analysis.energy === 'high') {
-        this.setPetState('high_energy', 'none', '🔥 Vibing hard!', '🤘');
+        this.setMascotState('high_energy', 'none', 'dancing', '⚡');
       } else if (analysis.energy === 'slow') {
-        this.setPetState('slow_music', 'none', '✨ Swaying to the rhythm...', '🎵');
+        this.setMascotState('slow_music', 'none', 'relaxed', '✨');
       } else {
-        this.setPetState('playing', 'none', '🎶 Loving this groove!', '🎧');
+        this.setMascotState('playing', 'none', 'happy', '🎵');
       }
     } else {
       // Paused or stopped
-      if (this.currentState === 'playing' || this.currentState === 'high_energy' || this.currentState === 'slow_music') {
-        this.setPetState('paused', 'none', '⏸️ Chilling for a moment.', '💤');
-        // Transition to idle after 1.5 seconds
-        this.setTransientTimeout(1500, () => {
-          this.setPetState('idle', 'none', null, '✨');
+      if (
+        this.currentState === 'playing' ||
+        this.currentState === 'high_energy' ||
+        this.currentState === 'slow_music'
+      ) {
+        this.setMascotState('paused', 'none', 'relaxed', null);
+        this.setTransientTimeout(1800, () => {
+          this.setMascotState('idle', 'none', 'relaxed', null);
         });
       } else if (this.currentState !== 'inactive' && this.currentState !== 'paused') {
-        // Check prolonged inactivity
+        // Prolonged inactivity -> sleepy
         const idleDuration = Date.now() - this.lastInteractionTime;
-        if (idleDuration > 45000) {
-          // Inactive for > 45 seconds -> fall asleep
-          this.setPetState('inactive', 'sleep', 'Zzz... Sleeping soundly', '😴');
+        if (idleDuration > 35000) {
+          this.setMascotState('inactive', 'sleep', 'sleepy', '💤');
         } else {
-          this.setPetState('idle', this.currentAction, null, '✨');
+          this.setMascotState('idle', this.currentAction, 'relaxed', null);
         }
       }
     }
@@ -178,31 +188,45 @@ export class PetBehaviorEngine {
   // --- User Interaction Trigger (Tap Pet) ---
   public handleUserTap() {
     this.lastInteractionTime = Date.now();
-
-    const phrases = [
-      '❤️ Yay! Music friend!',
-      '✨ You have great taste!',
-      '🎶 Turn up the beat!',
-      '⭐ Grooving with you!',
-      '🐾 Purr... so cozy!',
-    ];
-    const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-
     this.isTransientState = true;
-    this.setPetState('happy_tap', 'bounce', phrase, '💖');
+    this.setMascotState('happy_tap', 'bounce', 'excited', '❤️');
+
+    this.setTransientTimeout(2200, () => {
+      this.isTransientState = false;
+      this.setMascotState('idle', 'none', 'happy', null);
+    });
+  }
+
+  // --- Focused Action Trigger (e.g. Scrubber, EQ, DJ FX) ---
+  public triggerFocused() {
+    this.lastInteractionTime = Date.now();
+    this.isTransientState = true;
+    this.setMascotState('idle', 'none', 'focused', '🎧');
+
+    this.setTransientTimeout(2000, () => {
+      this.isTransientState = false;
+      this.emitState();
+    });
+  }
+
+  // --- Custom Visual Emote Reaction Trigger ---
+  public triggerEmoteReaction(emotion: MascotEmotion, emote: string) {
+    this.lastInteractionTime = Date.now();
+    this.isTransientState = true;
+    this.setMascotState('happy_tap', 'bounce', emotion, emote);
 
     this.setTransientTimeout(2400, () => {
       this.isTransientState = false;
-      this.setPetState('idle', 'none', null, '✨');
+      this.setMascotState('idle', 'none', 'happy', null);
     });
   }
 
   // --- Transient State Handlers ---
-  private triggerSongChanged(track: Track) {
+  private triggerSongChanged() {
     this.isTransientState = true;
-    this.setPetState('song_changed', 'spin', `🎵 New track: "${track.title.slice(0, 18)}"`, '🌟');
+    this.setMascotState('song_changed', 'spin', 'surprised', '❗');
 
-    this.setTransientTimeout(2600, () => {
+    this.setTransientTimeout(2200, () => {
       this.isTransientState = false;
       this.emitState();
     });
@@ -212,24 +236,24 @@ export class PetBehaviorEngine {
     if (this.currentState === 'song_finished') return;
 
     this.isTransientState = true;
-    this.setPetState('song_finished', 'celebrate', '🎉 What a track! Bravo!', '🎊');
+    this.setMascotState('song_finished', 'celebrate', 'excited', '✨');
 
-    this.setTransientTimeout(3000, () => {
+    this.setTransientTimeout(2800, () => {
       this.isTransientState = false;
-      this.setPetState('idle', 'none', null, '✨');
+      this.setMascotState('idle', 'none', 'happy', null);
     });
   }
 
-  private setPetState(
+  private setMascotState(
     state: PetState,
     action: PetAutonomousAction,
-    speechText: string | null,
-    moodEmoji: string
+    emotion: MascotEmotion,
+    emoteIcon: string | null
   ) {
     this.currentState = state;
     this.currentAction = action;
-    this.speechText = speechText;
-    this.moodEmoji = moodEmoji;
+    this.currentEmotion = emotion;
+    this.emoteIcon = emoteIcon;
     this.emitState();
   }
 
@@ -240,42 +264,40 @@ export class PetBehaviorEngine {
     }, ms);
   }
 
-  // --- Autonomous Random Behaviors (Cooldown & Randomized intervals) ---
+  // --- Autonomous Micro-Behaviors ---
   private startAutonomousLoop() {
-    // Check every 4 seconds for a potential autonomous reaction
     this.autonomousLoopTimer = setInterval(() => {
       if (this.isTransientState) return;
 
       const now = Date.now();
       if (now - this.lastActionTime < this.actionCooldownMs) return;
 
-      // Only perform subtle idle actions when idle or inactive
       if (this.currentState === 'idle') {
         const rand = Math.random();
 
         if (rand < 0.35) {
-          // Blink (high frequency, subtle)
-          this.triggerAutonomousAction('blink', 1200);
+          this.triggerAutonomousAction('blink', 'happy', 900);
         } else if (rand < 0.6) {
-          // Look around
-          this.triggerAutonomousAction('look_around', 2000);
-        } else if (rand < 0.78) {
-          // Stretch
-          this.triggerAutonomousAction('stretch', 2200);
-        } else if (rand < 0.9) {
-          // Yawn
-          this.triggerAutonomousAction('yawn', 2400);
+          this.triggerAutonomousAction('look_around', 'focused', 1800);
+        } else if (rand < 0.8) {
+          this.triggerAutonomousAction('stretch', 'relaxed', 2000);
+        } else if (rand < 0.92) {
+          this.triggerAutonomousAction('wave', 'happy', 1800);
         } else {
-          // Wave
-          this.triggerAutonomousAction('wave', 2000);
+          this.triggerAutonomousAction('yawn', 'sleepy', 2000);
         }
       }
     }, 4500);
   }
 
-  private triggerAutonomousAction(action: PetAutonomousAction, durationMs: number) {
+  private triggerAutonomousAction(
+    action: PetAutonomousAction,
+    emotion: MascotEmotion,
+    durationMs: number
+  ) {
     this.lastActionTime = Date.now();
     this.currentAction = action;
+    this.currentEmotion = emotion;
     this.emitState();
 
     setTimeout(() => {

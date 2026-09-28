@@ -10,6 +10,7 @@ import {
   Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import {
   AppTheme,
   AudioSettings,
@@ -20,8 +21,13 @@ import {
   WidgetSettings,
   PetSettings,
   PetAvatarType,
+  PetAccessory,
+  PlayerCustomizationSettings,
+  PlayerBackgroundType,
+  CharacterEmotion,
 } from '../types';
 import { THEMES } from '../constants/theme';
+import * as DocumentPicker from 'expo-document-picker';
 import {
   StorageService,
   defaultAudioSettings,
@@ -31,15 +37,17 @@ import {
   defaultAdvancedSettings,
   defaultWidgetSettings,
   defaultPetSettings,
+  defaultPlayerCustomizationSettings,
 } from '../services/playlistStorage';
 import { MusicPet } from '../pet/MusicPet';
-import { PET_PROFILES } from '../pet/types';
+import { PET_PROFILES, KAOMOJI_REACTIONS } from '../pet/types';
 import { TactileButton } from './TactileButton';
 
 type SettingsCategory =
   | 'root'
   | 'language'
   | 'interface'
+  | 'personalize'
   | 'audio'
   | 'library'
   | 'headset'
@@ -53,6 +61,8 @@ type SettingsCategory =
 
 interface SettingsViewProps {
   theme: AppTheme;
+  playerCustomization?: PlayerCustomizationSettings;
+  onUpdatePlayerCustomization?: (newSettings: PlayerCustomizationSettings) => void;
   onThemeChanged: (newTheme: AppTheme) => void;
   onOpenCloudSync: () => void;
   onOpenTerms: () => void;
@@ -75,6 +85,8 @@ const LANGUAGES = [
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   theme,
+  playerCustomization: propCustomization,
+  onUpdatePlayerCustomization,
   onThemeChanged,
   onOpenCloudSync,
   onOpenTerms,
@@ -97,13 +109,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>(defaultAdvancedSettings);
   const [widgetSettings, setWidgetSettings] = useState<WidgetSettings>(defaultWidgetSettings);
   const [petSettings, setPetSettings] = useState<PetSettings>(defaultPetSettings);
+  const [playerCustomization, setPlayerCustomization] = useState<PlayerCustomizationSettings>(
+    propCustomization || defaultPlayerCustomizationSettings
+  );
 
   useEffect(() => {
     loadAllSettings();
   }, []);
 
   const loadAllSettings = async () => {
-    const [lang, audio, headset, notif, lock, adv, widget, pet] = await Promise.all([
+    const [lang, audio, headset, notif, lock, adv, widget, pet, custom] = await Promise.all([
       StorageService.getLanguage(),
       StorageService.getAudioSettings(),
       StorageService.getHeadsetSettings(),
@@ -112,6 +127,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       StorageService.getAdvancedSettings(),
       StorageService.getWidgetSettings(),
       StorageService.getPetSettings(),
+      StorageService.getPlayerCustomizationSettings(),
     ]);
 
     setLanguage(lang);
@@ -122,6 +138,46 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setAdvancedSettings(adv);
     setWidgetSettings(widget);
     setPetSettings(pet);
+    setPlayerCustomization(custom);
+  };
+
+  const handleUpdatePlayerCustomization = async <K extends keyof PlayerCustomizationSettings>(
+    key: K,
+    value: PlayerCustomizationSettings[K]
+  ) => {
+    const updated = { ...playerCustomization, [key]: value };
+    setPlayerCustomization(updated);
+    await StorageService.savePlayerCustomizationSettings(updated);
+    if (onUpdatePlayerCustomization) {
+      onUpdatePlayerCustomization(updated);
+    }
+    onSettingsChanged();
+  };
+
+  const handlePickCustomWallpaper = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'image/*',
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri;
+        const updated = {
+          ...playerCustomization,
+          backgroundType: 'custom' as PlayerBackgroundType,
+          customImageUri: uri,
+        };
+        setPlayerCustomization(updated);
+        await StorageService.savePlayerCustomizationSettings(updated);
+        if (onUpdatePlayerCustomization) {
+          onUpdatePlayerCustomization(updated);
+        }
+        onSettingsChanged();
+        Alert.alert('Wallpaper Set', 'Custom background photo applied to Music Player.');
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to pick wallpaper image.');
+    }
   };
 
   // Update Handlers
@@ -218,8 +274,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     {
       id: 'interface' as SettingsCategory,
       title: 'Interface',
-      subtitle: `${theme.name} • Visualizer & Layout`,
+      subtitle: `${theme.name} • Theme Colors & Style`,
       icon: 'color-palette-outline' as const,
+    },
+    {
+      id: 'personalize' as SettingsCategory,
+      title: 'Personal Music Space',
+      subtitle: `${playerCustomization.backgroundType.toUpperCase()} • Wallpapers & Visual FX`,
+      icon: 'sparkles-outline' as const,
     },
     {
       id: 'audio' as SettingsCategory,
@@ -461,6 +523,252 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </TactileButton>
                 );
               })}
+            </View>
+          </View>
+        )}
+
+        {/* 2B. PERSONALIZE: PLAYER SPACE & VISUALS */}
+        {activeCategory === 'personalize' && (
+          <View style={styles.subPageContainer}>
+            <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
+              Customize your personal music-playing space, visual environments, and animation effects.
+            </Text>
+
+            <Text style={[styles.sectionHeading, { color: theme.accent }]}>BACKGROUND ENVIRONMENT</Text>
+            <View style={styles.customBgGrid}>
+              {[
+                { id: 'default' as PlayerBackgroundType, name: 'OLED Dark', icon: 'moon', desc: 'Deep black & high contrast' },
+                { id: 'aurora' as PlayerBackgroundType, name: 'Aurora Dream', icon: 'color-filter', desc: 'Cyan, violet & emerald glow' },
+                { id: 'sunset' as PlayerBackgroundType, name: 'Sunset Dusk', icon: 'sunny', desc: 'Warm amber & magenta horizon' },
+                { id: 'cyber' as PlayerBackgroundType, name: 'Cyber Neon', icon: 'flash', desc: 'Electric blue & neon magenta' },
+                { id: 'tokyo_rain' as PlayerBackgroundType, name: 'Tokyo Rain', icon: 'rainy', desc: 'Midnight navy & neon reflection' },
+                { id: 'custom' as PlayerBackgroundType, name: 'Custom Photo', icon: 'image', desc: 'Personal photo wallpaper' },
+              ].map((bg) => {
+                const isSelected = playerCustomization.backgroundType === bg.id;
+                return (
+                  <TactileButton
+                    key={bg.id}
+                    onPress={() => handleUpdatePlayerCustomization('backgroundType', bg.id)}
+                    style={[
+                      styles.customBgCard,
+                      {
+                        backgroundColor: isSelected ? `${theme.accent}18` : theme.surface,
+                        borderColor: isSelected ? theme.accent : theme.surfaceBorder,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.customBgIconWrap, { backgroundColor: isSelected ? theme.accent : theme.surfaceLight }]}>
+                      <Ionicons
+                        name={bg.icon as any}
+                        size={20}
+                        color={isSelected ? theme.background : theme.textPrimary}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.customBgCardName, { color: isSelected ? theme.accent : theme.textPrimary }]}>
+                        {bg.name}
+                      </Text>
+                      <Text style={[styles.customBgCardDesc, { color: theme.textSecondary }]}>
+                        {bg.desc}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color={theme.accent} />
+                    )}
+                  </TactileButton>
+                );
+              })}
+            </View>
+
+            {/* Custom Photo Wallpaper Actions */}
+            {playerCustomization.backgroundType === 'custom' && (
+              <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder, marginTop: 12 }]}>
+                <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Custom Photo Wallpaper</Text>
+                <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                  {playerCustomization.customImageUri ? 'Photo selected from device' : 'No photo chosen yet'}
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                  <TactileButton
+                    onPress={handlePickCustomWallpaper}
+                    style={[styles.actionPillBtn, { backgroundColor: theme.accent, flex: 1 }]}
+                  >
+                    <Ionicons name="image-outline" size={16} color={theme.background} />
+                    <Text style={[styles.actionPillBtnText, { color: theme.background }]}>
+                      Pick Photo from Device
+                    </Text>
+                  </TactileButton>
+
+                  {playerCustomization.customImageUri && (
+                    <TactileButton
+                      onPress={() => handleUpdatePlayerCustomization('customImageUri', undefined)}
+                      style={[styles.actionPillBtn, { backgroundColor: theme.surfaceLight, borderColor: theme.surfaceBorder, borderWidth: 1 }]}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={theme.accent} />
+                      <Text style={[styles.actionPillBtnText, { color: theme.accent }]}>Clear</Text>
+                    </TactileButton>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Visual Atmosphere & Dimming Controls */}
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder, marginTop: 14 }]}>
+              <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Background Blur & Dimming</Text>
+              <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                Tune wallpaper readability for song lyrics and music controls
+              </Text>
+
+              {/* Blur Level */}
+              <Text style={[styles.settingSmallLabel, { color: theme.textSecondary, marginTop: 12 }]}>Blur Intensity</Text>
+              <View style={styles.pillRow}>
+                {[
+                  { label: 'None', val: 0 },
+                  { label: 'Subtle (5)', val: 5 },
+                  { label: 'Medium (10)', val: 10 },
+                  { label: 'Heavy (20)', val: 20 },
+                ].map((b) => (
+                  <TactileButton
+                    key={b.val}
+                    onPress={() => handleUpdatePlayerCustomization('backgroundBlur', b.val)}
+                    style={[
+                      styles.filterPill,
+                      {
+                        backgroundColor: playerCustomization.backgroundBlur === b.val ? theme.accent : theme.surfaceLight,
+                        borderColor: playerCustomization.backgroundBlur === b.val ? theme.accent : theme.surfaceBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterPillText,
+                        { color: playerCustomization.backgroundBlur === b.val ? theme.background : theme.textSecondary },
+                      ]}
+                    >
+                      {b.label}
+                    </Text>
+                  </TactileButton>
+                ))}
+              </View>
+
+              {/* Dim Level */}
+              <Text style={[styles.settingSmallLabel, { color: theme.textSecondary, marginTop: 14 }]}>Dark Dim Overlay</Text>
+              <View style={styles.pillRow}>
+                {[
+                  { label: '20%', val: 0.2 },
+                  { label: '45%', val: 0.45 },
+                  { label: '65%', val: 0.65 },
+                  { label: '85%', val: 0.85 },
+                ].map((d) => (
+                  <TactileButton
+                    key={d.val}
+                    onPress={() => handleUpdatePlayerCustomization('backgroundDim', d.val)}
+                    style={[
+                      styles.filterPill,
+                      {
+                        backgroundColor: playerCustomization.backgroundDim === d.val ? theme.accent : theme.surfaceLight,
+                        borderColor: playerCustomization.backgroundDim === d.val ? theme.accent : theme.surfaceBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterPillText,
+                        { color: playerCustomization.backgroundDim === d.val ? theme.background : theme.textSecondary },
+                      ]}
+                    >
+                      {d.label}
+                    </Text>
+                  </TactileButton>
+                ))}
+              </View>
+            </View>
+
+            {/* Animation & Visual FX Switches */}
+            <Text style={[styles.sectionHeading, { color: theme.accent, marginTop: 22 }]}>ANIMATION & VISUAL FX CONTROLS</Text>
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>2D Human Companion Mascot</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Display animated character reacting to music
+                  </Text>
+                </View>
+                <Switch
+                  value={playerCustomization.enableCharacter}
+                  onValueChange={(val) => handleUpdatePlayerCustomization('enableCharacter', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Companion Motion & Head-Bobs</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Gentle rhythmic bouncing, breathing and emotes
+                  </Text>
+                </View>
+                <Switch
+                  value={playerCustomization.enableCharacterMotion}
+                  onValueChange={(val) => handleUpdatePlayerCustomization('enableCharacterMotion', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>14-Band Spectrum Visualizer</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Real-time glowing audio spectrum bars
+                  </Text>
+                </View>
+                <Switch
+                  value={playerCustomization.enableVisualizer}
+                  onValueChange={(val) => handleUpdatePlayerCustomization('enableVisualizer', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Vinyl & Artwork Beat Pulse</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Gentle dynamic scale pulses synced with audio playback
+                  </Text>
+                </View>
+                <Switch
+                  value={playerCustomization.enableArtworkAnimation}
+                  onValueChange={(val) => handleUpdatePlayerCustomization('enableArtworkAnimation', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Ambient Glow Waves</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Color illumination behind player controls
+                  </Text>
+                </View>
+                <Switch
+                  value={playerCustomization.enableBackgroundAmbiance}
+                  onValueChange={(val) => handleUpdatePlayerCustomization('enableBackgroundAmbiance', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
             </View>
           </View>
         )}
@@ -878,8 +1186,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }}
                 theme={theme}
                 avatar={petSettings.avatar}
+                accessory={petSettings.accessory}
                 size="large"
-                showSpeech={true}
               />
               <Text style={[styles.petPreviewName, { color: theme.textPrimary }]}>
                 {PET_PROFILES[petSettings.avatar]?.name} ({PET_PROFILES[petSettings.avatar]?.species})
@@ -887,14 +1195,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <Text style={[styles.petPreviewBio, { color: theme.textSecondary }]}>
                 {PET_PROFILES[petSettings.avatar]?.personality}
               </Text>
+
+              {/* Affection Level Meter */}
+              <View style={[styles.affectionBox, { borderColor: theme.surfaceBorder }]}>
+                <View style={styles.affectionHeader}>
+                  <Text style={[styles.affectionTitle, { color: theme.textPrimary }]}>
+                    ❤️ Affection Level: {petSettings.affection ?? 30}%
+                  </Text>
+                  <Text style={[styles.affectionHint, { color: theme.accent }]}>
+                    {(petSettings.affection ?? 30) >= 80 ? 'Devoted BFF' : 'Music Buddy'}
+                  </Text>
+                </View>
+                <View style={[styles.affectionTrack, { backgroundColor: theme.surfaceLight }]}>
+                  <View
+                    style={[
+                      styles.affectionFill,
+                      {
+                        width: `${Math.min(100, Math.max(5, petSettings.affection ?? 30))}%`,
+                        backgroundColor: theme.accent,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
             </View>
 
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder, marginTop: 16 }]}>
               <View style={styles.switchRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Enable Music Pet</Text>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Enable Music Companion</Text>
                   <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
-                    Animated character reacts to rhythm and song transitions
+                    Expressive 2D companion reacts through animations and emotes
                   </Text>
                 </View>
                 <Switch
@@ -909,11 +1240,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
               <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Choose Your Companion</Text>
               <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
-                Pick your preferred music avatar and personality
+                Human-like and stylized 2D music companions
               </Text>
 
-              <View style={styles.petAvatarRow}>
-                {(['cat', 'fox', 'bunny'] as PetAvatarType[]).map((type) => {
+              <View style={[styles.petAvatarRow, { flexWrap: 'wrap' }]}>
+                {(['human_aria', 'human_kai', 'human_nova', 'cat', 'bunny', 'kaomoji'] as PetAvatarType[]).map((type) => {
                   const p = PET_PROFILES[type];
                   const isSelected = petSettings.avatar === type;
                   return (
@@ -925,17 +1256,61 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {
                           backgroundColor: isSelected ? `${theme.accent}20` : theme.surfaceLight,
                           borderColor: isSelected ? theme.accent : theme.surfaceBorder,
+                          minWidth: '30%',
                         },
                       ]}
                     >
-                      <Text style={{ fontSize: 24 }}>
-                        {type === 'cat' ? '🐱' : type === 'fox' ? '🦊' : '🐰'}
+                      <Text style={{ fontSize: type.startsWith('human') ? 22 : 18 }}>
+                        {type === 'human_aria' ? '🎧' : type === 'human_kai' ? '🧢' : type === 'human_nova' ? '⚡' : type === 'cat' ? '🐱' : type === 'bunny' ? '🐰' : '(◕‿◕)'}
                       </Text>
                       <Text style={[styles.petAvatarBtnName, { color: isSelected ? theme.accent : theme.textPrimary }]}>
-                        {p.name}
+                        {p?.name || type}
                       </Text>
                       <Text style={[styles.petAvatarBtnSpecies, { color: theme.textSecondary }]}>
-                        {p.species}
+                        {p?.species || ''}
+                      </Text>
+                    </TactileButton>
+                  );
+                })}
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              {/* Equippable Accessories */}
+              <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Equip Companion Accessory</Text>
+              <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                Dress up your buddy with interactive flair
+              </Text>
+
+              <View style={styles.accessoryRow}>
+                {[
+                  { id: 'none' as PetAccessory, label: 'Default', icon: '🚫' },
+                  { id: 'sunglasses' as PetAccessory, label: 'Shades', icon: '🕶️' },
+                  { id: 'gold_headphones' as PetAccessory, label: 'Gold Hi-Fi', icon: '🎧' },
+                  { id: 'crown' as PetAccessory, label: 'Crown', icon: '👑' },
+                  { id: 'boombox' as PetAccessory, label: 'Boombox', icon: '📻' },
+                ].map((acc) => {
+                  const isSelected = (petSettings.accessory || 'none') === acc.id;
+                  return (
+                    <TactileButton
+                      key={acc.id}
+                      onPress={() => handleUpdatePet('accessory', acc.id)}
+                      style={[
+                        styles.accessoryBtn,
+                        {
+                          backgroundColor: isSelected ? `${theme.accent}25` : theme.surfaceLight,
+                          borderColor: isSelected ? theme.accent : theme.surfaceBorder,
+                        },
+                      ]}
+                    >
+                      <Text style={{ fontSize: 18 }}>{acc.icon}</Text>
+                      <Text
+                        style={[
+                          styles.accessoryBtnText,
+                          { color: isSelected ? theme.accent : theme.textSecondary },
+                        ]}
+                      >
+                        {acc.label}
                       </Text>
                     </TactileButton>
                   );
@@ -948,7 +1323,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Show in Now Playing Screen</Text>
                   <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
-                    Dance alongside the live 14-band spectrum visualizer
+                    Groove alongside album artwork and music controls
                   </Text>
                 </View>
                 <Switch
@@ -965,7 +1340,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Floating Mini Companion</Text>
                   <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
-                    Small draggable buddy hanging out on the main library screen
+                    Small buddy floating on the main library screen
                   </Text>
                 </View>
                 <Switch
@@ -974,6 +1349,57 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   trackColor={{ false: theme.surfaceLight, true: theme.accent }}
                   thumbColor={theme.textPrimary}
                 />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              {/* Expressive Emotions Preview */}
+              <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Facial Expressions & Emotional States</Text>
+              <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                Communicate through subtle facial expressions, body animations, and emotes
+              </Text>
+
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                {[
+                  { emotion: 'happy' as CharacterEmotion, label: 'Happy', emote: '🎵' },
+                  { emotion: 'excited' as CharacterEmotion, label: 'Excited', emote: '✨' },
+                  { emotion: 'sad' as CharacterEmotion, label: 'Sad (0 Vol)', emote: '💧' },
+                  { emotion: 'relaxed' as CharacterEmotion, label: 'Relaxed', emote: '❤️' },
+                  { emotion: 'surprised' as CharacterEmotion, label: 'Surprised', emote: '❗' },
+                  { emotion: 'focused' as CharacterEmotion, label: 'Focused', emote: '🎧' },
+                  { emotion: 'sleepy' as CharacterEmotion, label: 'Sleepy', emote: '💤' },
+                  { emotion: 'dancing' as CharacterEmotion, label: 'Dancing', emote: '⚡' },
+                ].map((item) => {
+                  const isSelected = petSettings.emotionOverride === item.emotion;
+                  return (
+                    <TactileButton
+                      key={item.emotion}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                        handleUpdatePet('emotionOverride', isSelected ? null : item.emotion);
+                      }}
+                      style={[
+                        styles.accessoryBtn,
+                        {
+                          backgroundColor: isSelected ? `${theme.accent}25` : theme.surfaceLight,
+                          borderColor: isSelected ? theme.accent : theme.surfaceBorder,
+                          minWidth: '22%',
+                          paddingVertical: 10,
+                        },
+                      ]}
+                    >
+                      <Text style={{ fontSize: 18 }}>{item.emote}</Text>
+                      <Text
+                        style={[
+                          styles.accessoryBtnText,
+                          { color: isSelected ? theme.accent : theme.textPrimary, marginTop: 4 },
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </TactileButton>
+                  );
+                })}
               </View>
             </View>
           </View>
@@ -1395,4 +1821,101 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textAlign: 'center',
   },
+  affectionBox: {
+    width: '100%',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+  },
+  affectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  affectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  affectionHint: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  affectionTrack: {
+    height: 6,
+    borderRadius: 3,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  affectionFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  accessoryRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 12,
+    marginBottom: 6,
+    flexWrap: 'wrap',
+  },
+  accessoryBtn: {
+    flex: 1,
+    minWidth: 58,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  accessoryBtnText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  customBgGrid: {
+    gap: 8,
+    marginTop: 10,
+  },
+  customBgCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  customBgIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customBgCardName: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  customBgCardDesc: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  actionPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  actionPillBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  settingSmallLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
 });
+

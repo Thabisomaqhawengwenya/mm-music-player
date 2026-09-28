@@ -1,9 +1,10 @@
 import React, { useRef } from 'react';
-import { Animated, TouchableWithoutFeedback, ViewStyle, StyleProp } from 'react-native';
+import { Animated, TouchableWithoutFeedback, ViewStyle, StyleProp, LayoutChangeEvent } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 interface TactileButtonProps {
   onPress?: () => void;
+  onLayout?: (e: LayoutChangeEvent) => void;
   style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
   activeScale?: number;
@@ -12,6 +13,7 @@ interface TactileButtonProps {
 
 export const TactileButton: React.FC<TactileButtonProps> = ({
   onPress,
+  onLayout,
   style,
   children,
   activeScale = 0.94,
@@ -48,7 +50,7 @@ export const TactileButton: React.FC<TactileButtonProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
     >
-      <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, style]}>
+      <Animated.View onLayout={onLayout} style={[{ transform: [{ scale: scaleAnim }] }, style]}>
         {children}
       </Animated.View>
     </TouchableWithoutFeedback>

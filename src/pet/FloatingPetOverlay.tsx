@@ -65,8 +65,10 @@ export const FloatingPetOverlay: React.FC<FloatingPetOverlayProps> = ({
         playbackState={playbackState}
         theme={theme}
         avatar={petSettings.avatar}
+        accessory={petSettings.accessory}
+        affection={petSettings.affection}
         size="compact"
-        showSpeech={true}
+        emotionOverride={petSettings.emotionOverride}
         onPress={() => {
           if (!isDragging && playbackState.currentTrack) {
             onOpenNowPlaying();

@@ -131,11 +131,52 @@ export interface WidgetSettings {
   showArtwork: boolean;
 }
 
-export type PetAvatarType = 'cat' | 'fox' | 'bunny';
+export type CharacterEmotion =
+  | 'happy'
+  | 'excited'
+  | 'sad'
+  | 'relaxed'
+  | 'surprised'
+  | 'focused'
+  | 'sleepy'
+  | 'dancing';
+
+export type PetAvatarType = 'human_aria' | 'human_kai' | 'human_nova' | 'cat' | 'bunny' | 'kaomoji';
+
+export type PetAccessory = 'none' | 'sunglasses' | 'gold_headphones' | 'crown' | 'boombox';
+
+export type PetTreat = 'cookie' | 'donut' | 'fish';
+
+export type VisualizerMode = 'spectrum' | 'lava_blob' | 'oscilloscope' | 'particle_starfield';
+
+export type PlayerBackgroundType =
+  | 'default'
+  | 'aurora'
+  | 'sunset'
+  | 'cyber'
+  | 'tokyo_rain'
+  | 'custom';
+
+export interface PlayerCustomizationSettings {
+  backgroundType: PlayerBackgroundType;
+  customImageUri?: string;
+  backgroundBlur: number;
+  backgroundDim: number;
+  enableCharacter: boolean;
+  enableCharacterMotion: boolean;
+  enableVisualizer: boolean;
+  enableArtworkAnimation: boolean;
+  enableBackgroundAmbiance: boolean;
+}
 
 export interface PetSettings {
   enabled: boolean;
   avatar: PetAvatarType;
   showOnNowPlaying: boolean;
   showFloatingMini: boolean;
+  accessory?: PetAccessory;
+  affection?: number; // 0 to 100
+  treatsCount?: number;
+  emotionOverride?: CharacterEmotion | null;
 }
+

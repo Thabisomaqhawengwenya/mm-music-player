@@ -31,6 +31,7 @@ export class AudioPlayerService {
 
   private sleepTimerId: ReturnType<typeof setTimeout> | null = null;
   private sleepTimerExpiresAt: number | null = null;
+  private pausedDueToZeroVolume: boolean = false;
 
   private constructor() {
     this.initAudioMode();
@@ -156,7 +157,13 @@ export class AudioPlayerService {
       });
 
       this.player = newPlayer;
-      newPlayer.play();
+      if (this.state.volume === 0) {
+        this.pausedDueToZeroVolume = true;
+        this.state.isPlaying = false;
+        this.notify();
+      } else {
+        newPlayer.play();
+      }
     } catch (error) {
       console.warn('Failed to load track audio:', error);
       this.state.isPlaying = false;
@@ -210,6 +217,7 @@ export class AudioPlayerService {
       return;
     }
 
+    this.pausedDueToZeroVolume = false;
     if (this.state.isPlaying) {
       this.player.pause();
     } else {
@@ -218,12 +226,14 @@ export class AudioPlayerService {
   }
 
   public async resume() {
+    this.pausedDueToZeroVolume = false;
     if (this.player) {
       this.player.play();
     }
   }
 
   public async pause() {
+    this.pausedDueToZeroVolume = false;
     if (this.player) {
       this.player.pause();
     }
@@ -353,6 +363,27 @@ export class AudioPlayerService {
     if (this.player) {
       this.player.volume = clamped;
     }
+
+    if (clamped === 0) {
+      // If volume is reduced all the way to 0, automatically pause currently playing song
+      if (this.state.isPlaying) {
+        this.pausedDueToZeroVolume = true;
+        this.state.isPlaying = false;
+        if (this.player) {
+          this.player.pause();
+        }
+      }
+    } else {
+      // When user increases volume above 0, automatically resume from where it was paused
+      if (this.pausedDueToZeroVolume && !this.state.isPlaying) {
+        this.pausedDueToZeroVolume = false;
+        this.state.isPlaying = true;
+        if (this.player) {
+          this.player.play();
+        }
+      }
+    }
+
     this.notify();
   }
 
