@@ -53,6 +53,7 @@ import { CloudSyncModal } from './src/components/CloudSyncModal';
 import { TermsModal } from './src/components/TermsModal';
 import { PrivacyModal } from './src/components/PrivacyModal';
 import { FloatingPetOverlay } from './src/pet/FloatingPetOverlay';
+import { FloatingGlassNavBar } from './src/components/FloatingGlassNavBar';
 import { formatFileSize } from './src/utils/formatters';
 
 type MainNavTab = 'library' | 'playlists' | 'search' | 'settings';
@@ -551,7 +552,7 @@ export default function App() {
             <FlatList
               data={playlists}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={{ paddingBottom: 110 }}
+              contentContainerStyle={{ paddingBottom: 130 }}
               renderItem={({ item }) => (
                 <TactileButton
                   onPress={() => setSelectedPlaylist(item)}
@@ -635,61 +636,12 @@ export default function App() {
         />
       )}
 
-      {/* Persistent Bottom Navigation Bar - Aligned to Reference Image 1 */}
-      <View
-        style={[
-          styles.bottomNavBar,
-          {
-            backgroundColor: theme.id === 'light' ? theme.surface : '#080b11',
-            borderTopColor: theme.id === 'light' ? theme.surfaceBorder : '#161c28',
-          },
-        ]}
-      >
-        {[
-          { key: 'library', label: 'Library', icon: 'library-outline', activeIcon: 'library' },
-          { key: 'playlists', label: 'Playlists', icon: 'musical-notes-outline', activeIcon: 'musical-notes' },
-          { key: 'search', label: 'Search', icon: 'search-outline', activeIcon: 'search' },
-          { key: 'settings', label: 'Settings', icon: 'settings-outline', activeIcon: 'settings' },
-        ].map((tab) => {
-          const isActive = mainTab === tab.key;
-          const activeCyan = '#00e5ff';
-          const inactiveColor = '#728096';
-
-          return (
-            <TactileButton
-              key={tab.key}
-              onPress={() => setMainTab(tab.key as MainNavTab)}
-              style={styles.navTabBtn}
-            >
-              <View
-                style={[
-                  styles.navIconBox,
-                  isActive && {
-                    backgroundColor: 'rgba(0, 229, 255, 0.12)',
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={(isActive ? tab.activeIcon : tab.icon) as any}
-                  size={23}
-                  color={isActive ? activeCyan : inactiveColor}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.navTabLabel,
-                  {
-                    color: isActive ? activeCyan : inactiveColor,
-                    fontWeight: isActive ? '800' : '600',
-                  },
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </TactileButton>
-          );
-        })}
-      </View>
+      {/* Floating Glassmorphic Island Navigation Bar */}
+      <FloatingGlassNavBar
+        activeTab={mainTab}
+        onSelectTab={(tab) => setMainTab(tab)}
+        theme={theme}
+      />
 
       {/* MODALS */}
 
@@ -989,7 +941,7 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: 20,
     paddingTop: 4,
-    paddingBottom: 110,
+    paddingBottom: 130,
   },
   folderCard: {
     flexDirection: 'row',

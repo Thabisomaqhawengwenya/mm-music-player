@@ -55,8 +55,8 @@ interface NowPlayingModalProps {
   onNavigateToTab?: (tab: 'library' | 'playlists' | 'search' | 'settings', subTab?: string) => void;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const ARTWORK_SIZE = Math.min(SCREEN_WIDTH - 64, 300);
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const ARTWORK_SIZE = Math.min(SCREEN_WIDTH - 80, SCREEN_HEIGHT < 750 ? 190 : 225);
 
 export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
   visible,
@@ -81,8 +81,7 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
   const [showLyrics, setShowLyrics] = useState(false);
   const [djFxModalOpen, setDjFxModalOpen] = useState(false);
   const [customizerOpen, setCustomizerOpen] = useState(false);
-  const [showTreatsTray, setShowTreatsTray] = useState(false);
-  const [showEmotesTray, setShowEmotesTray] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [mascotEmotion, setMascotEmotion] = useState<CharacterEmotion | null>(null);
   const [volume, setVolume] = useState(playbackState.volume ?? 1.0);
 
@@ -283,14 +282,6 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              {/* DJ Quick-FX Pad */}
-              <TactileButton
-                onPress={() => setDjFxModalOpen(true)}
-                style={styles.headerButton}
-              >
-                <Ionicons name="speedometer-outline" size={21} color={theme.accent} />
-              </TactileButton>
-
               {/* Personalize Player Space Button */}
               <TactileButton
                 onPress={() => setCustomizerOpen(true)}
@@ -311,12 +302,12 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
                 />
               </TactileButton>
 
-              {/* Tag Editor */}
+              {/* More Actions Menu */}
               <TactileButton
-                onPress={() => onOpenTagEditor(track)}
+                onPress={() => setMoreMenuOpen(true)}
                 style={styles.headerButton}
               >
-                <Ionicons name="create-outline" size={21} color={theme.textSecondary} />
+                <Ionicons name="ellipsis-vertical" size={21} color={theme.textPrimary} />
               </TactileButton>
             </View>
           </View>
@@ -376,62 +367,14 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
                   accessory={petSettings?.accessory}
                   affection={petSettings?.affection}
                   motionEnabled={playerCustomization?.enableCharacterMotion}
-                  size="normal"
+                  size="compact"
                   emotionOverride={mascotEmotion}
-                  showTreatControls={showTreatsTray}
-                  showEmoteControls={showEmotesTray}
-                  onFeed={async (treat) => {
-                    const newAffection = Math.min(100, (petSettings?.affection || 50) + 5);
-                    await StorageService.savePetSettings({ affection: newAffection });
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    setMascotEmotion(mascotEmotion === 'happy' ? 'excited' : 'happy');
+                    setTimeout(() => setMascotEmotion(null), 2500);
                   }}
                 />
-                <View style={styles.petBadgeRow}>
-                  <TactileButton
-                    onPress={() => {
-                      setShowEmotesTray(!showEmotesTray);
-                      if (!showEmotesTray) setShowTreatsTray(false);
-                    }}
-                    style={[
-                      styles.petToggleBadge,
-                      {
-                        backgroundColor: showEmotesTray ? theme.accent : 'rgba(255,255,255,0.06)',
-                        borderColor: theme.surfaceBorder,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.petToggleBadgeText,
-                        { color: showEmotesTray ? '#000' : theme.textSecondary },
-                      ]}
-                    >
-                      {showEmotesTray ? '✖ Emotes' : '✨ Emotes'}
-                    </Text>
-                  </TactileButton>
-
-                  <TactileButton
-                    onPress={() => {
-                      setShowTreatsTray(!showTreatsTray);
-                      if (!showTreatsTray) setShowEmotesTray(false);
-                    }}
-                    style={[
-                      styles.petToggleBadge,
-                      {
-                        backgroundColor: showTreatsTray ? theme.accent : 'rgba(255,255,255,0.06)',
-                        borderColor: theme.surfaceBorder,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.petToggleBadgeText,
-                        { color: showTreatsTray ? '#000' : theme.textSecondary },
-                      ]}
-                    >
-                      {showTreatsTray ? '✖ Treats' : '🍪 Treats'}
-                    </Text>
-                  </TactileButton>
-                </View>
               </View>
             )}
 
@@ -674,9 +617,9 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
               <Ionicons name="search-outline" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
 
-            {/* 9. More Options / Customizer */}
+            {/* 9. More Options */}
             <TouchableOpacity
-              onPress={() => setCustomizerOpen(true)}
+              onPress={() => setMoreMenuOpen(true)}
               style={styles.quickNavBtn}
               activeOpacity={0.7}
             >
@@ -878,6 +821,127 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
                   </TouchableOpacity>
                 </View>
               </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal: More Playback & Utility Tools */}
+        <Modal
+          visible={moreMenuOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMoreMenuOpen(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View
+              style={[
+                styles.moreMenuCard,
+                { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
+              ]}
+            >
+              <View style={styles.moreMenuHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="apps-outline" size={20} color={theme.accent} />
+                  <Text style={[styles.moreMenuTitle, { color: theme.textPrimary }]}>
+                    Playback Tools
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setMoreMenuOpen(false)}>
+                  <Ionicons name="close-circle" size={24} color={theme.textTertiary} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.moreMenuGrid}>
+                {/* 1. Equalizer */}
+                <TouchableOpacity
+                  style={[styles.moreMenuItem, { backgroundColor: theme.surfaceLight }]}
+                  onPress={() => {
+                    setMoreMenuOpen(false);
+                    onOpenEqualizer();
+                  }}
+                >
+                  <View style={[styles.moreMenuIconCircle, { backgroundColor: 'rgba(0, 229, 255, 0.12)' }]}>
+                    <Ionicons name="options-outline" size={22} color={theme.accent} />
+                  </View>
+                  <Text style={[styles.moreMenuLabel, { color: theme.textPrimary }]}>Equalizer</Text>
+                  <Text style={[styles.moreMenuSub, { color: theme.textTertiary }]}>10-Band EQ & FX</Text>
+                </TouchableOpacity>
+
+                {/* 2. Sleep Timer */}
+                <TouchableOpacity
+                  style={[styles.moreMenuItem, { backgroundColor: theme.surfaceLight }]}
+                  onPress={() => {
+                    setMoreMenuOpen(false);
+                    onOpenSleepTimer();
+                  }}
+                >
+                  <View style={[styles.moreMenuIconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.12)' }]}>
+                    <Ionicons name="moon-outline" size={22} color="#a855f7" />
+                  </View>
+                  <Text style={[styles.moreMenuLabel, { color: theme.textPrimary }]}>Sleep Timer</Text>
+                  <Text style={[styles.moreMenuSub, { color: theme.textTertiary }]}>Auto Stop</Text>
+                </TouchableOpacity>
+
+                {/* 3. DJ Quick-FX */}
+                <TouchableOpacity
+                  style={[styles.moreMenuItem, { backgroundColor: theme.surfaceLight }]}
+                  onPress={() => {
+                    setMoreMenuOpen(false);
+                    setDjFxModalOpen(true);
+                  }}
+                >
+                  <View style={[styles.moreMenuIconCircle, { backgroundColor: 'rgba(236, 72, 153, 0.12)' }]}>
+                    <Ionicons name="speedometer-outline" size={22} color="#ec4899" />
+                  </View>
+                  <Text style={[styles.moreMenuLabel, { color: theme.textPrimary }]}>DJ Quick-FX</Text>
+                  <Text style={[styles.moreMenuSub, { color: theme.textTertiary }]}>XY Filter Pad</Text>
+                </TouchableOpacity>
+
+                {/* 4. Edit Song Tags */}
+                <TouchableOpacity
+                  style={[styles.moreMenuItem, { backgroundColor: theme.surfaceLight }]}
+                  onPress={() => {
+                    setMoreMenuOpen(false);
+                    onOpenTagEditor(track);
+                  }}
+                >
+                  <View style={[styles.moreMenuIconCircle, { backgroundColor: 'rgba(34, 197, 94, 0.12)' }]}>
+                    <Ionicons name="create-outline" size={22} color="#22c55e" />
+                  </View>
+                  <Text style={[styles.moreMenuLabel, { color: theme.textPrimary }]}>Tag Editor</Text>
+                  <Text style={[styles.moreMenuSub, { color: theme.textTertiary }]}>Title, Artist, Genre</Text>
+                </TouchableOpacity>
+
+                {/* 5. Personalize Space */}
+                <TouchableOpacity
+                  style={[styles.moreMenuItem, { backgroundColor: theme.surfaceLight }]}
+                  onPress={() => {
+                    setMoreMenuOpen(false);
+                    setCustomizerOpen(true);
+                  }}
+                >
+                  <View style={[styles.moreMenuIconCircle, { backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
+                    <Ionicons name="color-palette-outline" size={22} color="#f59e0b" />
+                  </View>
+                  <Text style={[styles.moreMenuLabel, { color: theme.textPrimary }]}>Personalize</Text>
+                  <Text style={[styles.moreMenuSub, { color: theme.textTertiary }]}>Theme & Wallpaper</Text>
+                </TouchableOpacity>
+
+                {/* 6. Playback Queue */}
+                <TouchableOpacity
+                  style={[styles.moreMenuItem, { backgroundColor: theme.surfaceLight }]}
+                  onPress={() => {
+                    setMoreMenuOpen(false);
+                    onOpenQueue();
+                  }}
+                >
+                  <View style={[styles.moreMenuIconCircle, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
+                    <Ionicons name="list-outline" size={22} color="#3b82f6" />
+                  </View>
+                  <Text style={[styles.moreMenuLabel, { color: theme.textPrimary }]}>Queue</Text>
+                  <Text style={[styles.moreMenuSub, { color: theme.textTertiary }]}>View Next Tracks</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -1221,5 +1285,52 @@ const styles = StyleSheet.create({
   modalToolBtnText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  moreMenuCard: {
+    width: '90%',
+    maxWidth: 420,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 20,
+  },
+  moreMenuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  moreMenuTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  moreMenuGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  moreMenuItem: {
+    width: '48%',
+    padding: 12,
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: 4,
+  },
+  moreMenuIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  moreMenuLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  moreMenuSub: {
+    fontSize: 11,
+    textAlign: 'center',
   },
 });
