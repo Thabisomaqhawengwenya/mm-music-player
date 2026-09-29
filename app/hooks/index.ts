@@ -5,3 +5,4 @@ export { useFadeAnimation, type UseFadeAnimationOptions } from './useFadeAnimati
 export { useSlideAnimation, type UseSlideAnimationOptions } from './useSlideAnimation';
 export { useHapticFeedback } from './useHapticFeedback';
 export { useColorScheme } from './useColorScheme';
+export { useThemeColor } from './useThemeColor';

@@ -161,7 +161,7 @@ export class AudioPlayerService {
         // Lock screen controls optional fallback
       }
 
-      newPlayer.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+      (newPlayer as any).addListener('playbackStatusUpdate', (status: AudioStatus) => {
         this.onPlaybackStatusUpdate(status);
       });
 

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
 import { MiniPlayer } from '../components/MiniPlayer';
 import { FloatingPetOverlay } from '../pet/FloatingPetOverlay';
+import { HapticTab } from '../components/HapticTab';
 
 export default function TabLayout() {
   const {
@@ -20,6 +21,7 @@ export default function TabLayout() {
         screenOptions={{
           tabBarActiveTintColor: theme.accent,
           tabBarInactiveTintColor: theme.textTertiary,
+          tabBarButton: HapticTab,
           tabBarStyle: {
             backgroundColor: theme.surface,
             borderTopColor: theme.surfaceBorder,
@@ -55,6 +57,19 @@ export default function TabLayout() {
             tabBarIcon: ({ color, focused }) => (
               <Ionicons
                 name={focused ? 'search' : 'search-outline'}
+                size={20}
+                color={color}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="artists"
+          options={{
+            title: 'Artists',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? 'people' : 'people-outline'}
                 size={20}
                 color={color}
               />
