@@ -266,6 +266,7 @@ export const MusicPlayerProvider: React.FC<{ children: ReactNode }> = ({ childre
   };
 
   const handlePlayTrack = (track: Track, contextList?: Track[]) => {
+    StorageService.recordTrackPlay(track);
     player.playTrack(track, contextList);
   };
 
@@ -273,9 +274,11 @@ export const MusicPlayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     if (list.length === 0) return;
     if (shuffle) {
       const shuffled = [...list].sort(() => Math.random() - 0.5);
-      player.setQueue(shuffled, 0);
+      StorageService.recordTrackPlay(shuffled[0]);
+      player.playTrack(shuffled[0], shuffled);
     } else {
-      player.setQueue(list, 0);
+      StorageService.recordTrackPlay(list[0]);
+      player.playTrack(list[0], list);
     }
   };
 

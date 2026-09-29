@@ -180,3 +180,27 @@ export interface PetSettings {
   emotionOverride?: CharacterEmotion | null;
 }
 
+export interface TrackPlayStat {
+  trackId: string;
+  title: string;
+  artist: string;
+  album: string;
+  artwork?: string;
+  genre?: string;
+  duration?: number;
+  playCount: number;
+  totalDurationSeconds: number;
+  lastPlayed: number;
+}
+
+export interface ListeningStats {
+  totalPlays: number;
+  totalSeconds: number;
+  trackPlays: Record<string, TrackPlayStat>;
+  artistPlays: Record<string, number>;
+  genrePlays: Record<string, number>;
+  dailyMinutes: Record<string, number>;
+  hourlyPlays: number[];
+  firstRecordedDate?: string;
+}
+

@@ -90,6 +90,7 @@ function RootLayoutNav() {
 
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="stats" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
         </Stack>

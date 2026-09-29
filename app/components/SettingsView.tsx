@@ -25,6 +25,7 @@ import {
   PlayerCustomizationSettings,
   PlayerBackgroundType,
   CharacterEmotion,
+  Track,
 } from '@/src/types';
 import { THEMES } from '../../app/constants/theme';
 import * as DocumentPicker from 'expo-document-picker';
@@ -42,9 +43,11 @@ import {
 import { MusicPet } from '../../app/pet/MusicPet';
 import { PET_PROFILES, KAOMOJI_REACTIONS } from '../../app/pet/types';
 import { TactileButton } from './TactileButton';
+import { ListeningStatsView } from './ListeningStatsView';
 
 type SettingsCategory =
   | 'root'
+  | 'stats'
   | 'language'
   | 'interface'
   | 'personalize'
@@ -61,6 +64,9 @@ type SettingsCategory =
 
 interface SettingsViewProps {
   theme: AppTheme;
+  allTracks?: Track[];
+  onPlayTrack?: (track: Track, contextList?: Track[]) => void;
+  onToggleFavorite?: (trackId: string) => void;
   playerCustomization?: PlayerCustomizationSettings;
   onUpdatePlayerCustomization?: (newSettings: PlayerCustomizationSettings) => void;
   onThemeChanged: (newTheme: AppTheme) => void;
@@ -84,6 +90,9 @@ const LANGUAGES = [
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   theme,
+  allTracks = [],
+  onPlayTrack,
+  onToggleFavorite,
   playerCustomization: propCustomization,
   onUpdatePlayerCustomization,
   onThemeChanged,
@@ -264,6 +273,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Main Musicolet Categories list matching Screenshot 1
   const categories = [
     {
+      id: 'stats' as SettingsCategory,
+      title: 'Listening Stats & Insights',
+      subtitle: 'Favorite song, top artists, listening time & trends',
+      icon: 'stats-chart-outline' as const,
+    },
+    {
       id: 'language' as SettingsCategory,
       title: 'Language',
       subtitle: LANGUAGES.find((l) => l.code === language)?.name || 'English',
@@ -351,6 +366,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       (c) => c.title.toLowerCase().includes(q) || c.subtitle.toLowerCase().includes(q)
     );
   }, [searchQuery, categories]);
+
+  if (activeCategory === 'stats') {
+    return (
+      <ListeningStatsView
+        theme={theme}
+        allTracks={allTracks}
+        onPlayTrack={onPlayTrack}
+        onToggleFavorite={onToggleFavorite}
+        onBack={() => setActiveCategory('root')}
+      />
+    );
+  }
 
   return (
     <View style={styles.root}>

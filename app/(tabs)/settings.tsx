@@ -7,6 +7,9 @@ export default function SettingsTab() {
   const {
     theme,
     setTheme,
+    tracks,
+    handlePlayTrack,
+    handleToggleFavorite,
     playerCustomization,
     handleUpdatePlayerCustomization,
     setTermsOpen,
@@ -21,6 +24,9 @@ export default function SettingsTab() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <SettingsView
         theme={theme}
+        allTracks={tracks}
+        onPlayTrack={handlePlayTrack}
+        onToggleFavorite={handleToggleFavorite}
         playerCustomization={playerCustomization}
         onUpdatePlayerCustomization={handleUpdatePlayerCustomization}
         onThemeChanged={(newTheme: any) => setTheme(newTheme)}

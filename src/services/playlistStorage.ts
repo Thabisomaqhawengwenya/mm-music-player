@@ -10,6 +10,8 @@ import {
   WidgetSettings,
   PetSettings,
   PlayerCustomizationSettings,
+  ListeningStats,
+  TrackPlayStat,
 } from '../types';
 
 const STORAGE_KEYS = {
@@ -29,6 +31,7 @@ const STORAGE_KEYS = {
   WIDGET_SETTINGS: '@mm_music_widget_settings',
   PET_SETTINGS: '@mm_music_pet_settings',
   PLAYER_CUSTOMIZATION: '@mm_music_player_customization',
+  LISTENING_STATS: '@mm_music_listening_stats',
 };
 
 export const defaultPlayerCustomizationSettings: PlayerCustomizationSettings = {
@@ -536,4 +539,134 @@ export class StorageService {
     await this.savePetSettings(defaultPetSettings);
     await this.savePlayerCustomizationSettings(defaultPlayerCustomizationSettings);
   }
+
+  static async getListeningStats(): Promise<ListeningStats> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.LISTENING_STATS);
+      if (!data) return defaultListeningStats;
+      const parsed = JSON.parse(data);
+      return {
+        ...defaultListeningStats,
+        ...parsed,
+        trackPlays: parsed.trackPlays || {},
+        artistPlays: parsed.artistPlays || {},
+        genrePlays: parsed.genrePlays || {},
+        dailyMinutes: parsed.dailyMinutes || {},
+        hourlyPlays: Array.isArray(parsed.hourlyPlays) && parsed.hourlyPlays.length === 24
+          ? parsed.hourlyPlays
+          : Array(24).fill(0),
+      };
+    } catch {
+      return defaultListeningStats;
+    }
+  }
+
+  static async saveListeningStats(stats: ListeningStats): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.LISTENING_STATS, JSON.stringify(stats));
+    } catch (e) {
+      console.warn('Failed to save listening stats', e);
+    }
+  }
+
+  static async recordTrackPlay(track: Track): Promise<ListeningStats> {
+    try {
+      const stats = await this.getListeningStats();
+      const now = Date.now();
+      const todayDate = new Date().toISOString().split('T')[0];
+      const hour = new Date().getHours();
+      const trackDuration = track.duration || 180;
+
+      // Update Track Play Stat
+      const existing = stats.trackPlays[track.id] || {
+        trackId: track.id,
+        title: track.title,
+        artist: track.artist,
+        album: track.album,
+        artwork: track.artwork,
+        genre: track.genre,
+        duration: track.duration,
+        playCount: 0,
+        totalDurationSeconds: 0,
+        lastPlayed: now,
+      };
+
+      const updatedTrack: TrackPlayStat = {
+        ...existing,
+        title: track.title || existing.title,
+        artist: track.artist || existing.artist,
+        album: track.album || existing.album,
+        artwork: track.artwork || existing.artwork,
+        genre: track.genre || existing.genre,
+        playCount: existing.playCount + 1,
+        totalDurationSeconds: existing.totalDurationSeconds + trackDuration,
+        lastPlayed: now,
+      };
+
+      // Update Artists Play Count
+      const artist = track.artist || 'Unknown Artist';
+      const artistCount = (stats.artistPlays[artist] || 0) + 1;
+
+      // Update Genre Play Count
+      const genre = track.genre || 'Other';
+      const genreCount = (stats.genrePlays[genre] || 0) + 1;
+
+      // Update Daily Minutes
+      const currentDayMinutes = stats.dailyMinutes[todayDate] || 0;
+      const addedMinutes = Math.round(trackDuration / 60);
+
+      // Update Hourly distribution
+      const hourly = [...stats.hourlyPlays];
+      hourly[hour] = (hourly[hour] || 0) + 1;
+
+      const updatedStats: ListeningStats = {
+        totalPlays: stats.totalPlays + 1,
+        totalSeconds: stats.totalSeconds + trackDuration,
+        trackPlays: {
+          ...stats.trackPlays,
+          [track.id]: updatedTrack,
+        },
+        artistPlays: {
+          ...stats.artistPlays,
+          [artist]: artistCount,
+        },
+        genrePlays: {
+          ...stats.genrePlays,
+          [genre]: genreCount,
+        },
+        dailyMinutes: {
+          ...stats.dailyMinutes,
+          [todayDate]: currentDayMinutes + addedMinutes,
+        },
+        hourlyPlays: hourly,
+        firstRecordedDate: stats.firstRecordedDate || todayDate,
+      };
+
+      await this.saveListeningStats(updatedStats);
+      return updatedStats;
+    } catch (e) {
+      console.warn('Failed to record track play', e);
+      return defaultListeningStats;
+    }
+  }
+
+  static async resetListeningStats(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.LISTENING_STATS);
+    } catch (e) {
+      console.warn('Failed to reset listening stats', e);
+    }
+  }
 }
+
+export const defaultListeningStats: ListeningStats = {
+  totalPlays: 0,
+  totalSeconds: 0,
+  trackPlays: {},
+  artistPlays: {},
+  genrePlays: {},
+  dailyMinutes: {},
+  hourlyPlays: Array(24).fill(0),
+  firstRecordedDate: new Date().toISOString().split('T')[0],
+};
+
