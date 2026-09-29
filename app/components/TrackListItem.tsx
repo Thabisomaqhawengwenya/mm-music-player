@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Track, AppTheme } from '@/src/types';
 import { TactileButton } from './TactileButton';
+import { PixelArtworkFallback } from './PixelArtworkFallback';
 import { formatTime } from '@/src/utils/formatters';
 
 interface TrackListItemProps {
@@ -108,17 +109,12 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
           {track.artwork ? (
             <Image source={{ uri: track.artwork }} style={styles.artwork} />
           ) : (
-            <View style={[styles.artworkPlaceholder, { backgroundColor: theme.surfaceLight }]}>
-              {isCurrent ? (
-                <Ionicons
-                  name={isPlaying ? 'volume-high' : 'pause'}
-                  size={18}
-                  color={theme.accent}
-                />
-              ) : (
-                <Ionicons name="musical-note" size={16} color={theme.textTertiary} />
-              )}
-            </View>
+            <PixelArtworkFallback
+              seed={`${track.title}-${track.artist}`}
+              size={46}
+              cornerRadius={12}
+              iconName={isCurrent ? (isPlaying ? 'volume-high' : 'pause') : 'musical-note'}
+            />
           )}
 
           {isCurrent && track.artwork && (
@@ -134,15 +130,23 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
 
         {/* Track Title & Artist */}
         <View style={styles.metaCol}>
-          <Text
-            style={[
-              styles.title,
-              { color: isCurrent ? theme.accent : theme.textPrimary },
-            ]}
-            numberOfLines={1}
-          >
-            {track.title}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text
+              style={[
+                styles.title,
+                { color: isCurrent ? theme.accent : theme.textPrimary, flexShrink: 1 },
+              ]}
+              numberOfLines={1}
+            >
+              {track.title}
+            </Text>
+            {((track.filename || track.uri || '').toLowerCase().endsWith('.flac') ||
+              (track.filename || track.uri || '').toLowerCase().endsWith('.wav')) && (
+              <View style={[styles.losslessBadge, { backgroundColor: theme.accentGlow }]}>
+                <Text style={[styles.losslessBadgeText, { color: theme.accent }]}>HI-RES</Text>
+              </View>
+            )}
+          </View>
           <Text style={[styles.artist, { color: theme.textSecondary }]} numberOfLines={1}>
             {track.artist} {track.album ? `• ${track.album}` : ''}
           </Text>
@@ -251,5 +255,15 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     padding: 12,
+  },
+  losslessBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 5,
+  },
+  losslessBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });

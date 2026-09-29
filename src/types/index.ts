@@ -97,6 +97,20 @@ export interface AppTheme {
   cardBg: string;
   danger: string;
   success: string;
+  isDark?: boolean;
+  borderRadius?: {
+    sm: number;
+    md: number;
+    lg: number;
+    card: number;
+    pill: number;
+  };
+  isMaterialYou?: boolean;
+  primaryContainer?: string;
+  onPrimaryContainer?: string;
+  surfaceContainer?: string;
+  surfaceContainerHigh?: string;
+  outlineVariant?: string;
 }
 
 export interface HeadsetSettings {
@@ -167,6 +181,9 @@ export interface PlayerCustomizationSettings {
   enableVisualizer: boolean;
   enableArtworkAnimation: boolean;
   enableBackgroundAmbiance: boolean;
+  cornerRadius?: number; // 12, 18, 24, 32
+  materialYouDynamic?: boolean;
+  artistDelimiters?: string[];
 }
 
 export interface PetSettings {

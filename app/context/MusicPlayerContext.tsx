@@ -21,6 +21,7 @@ import {
 import { THEMES, DEFAULT_THEME } from '../constants/theme';
 import { AudioPlayerService } from '../../src/services/audioPlayer';
 import { StorageScannerService } from '../../src/services/storageScanner';
+import { extractDynamicThemeFromTrack } from '../../src/utils/dynamicTheme';
 import {
   StorageService,
   defaultPetSettings,
@@ -112,7 +113,7 @@ export interface MusicPlayerContextType {
 const MusicPlayerContext = createContext<MusicPlayerContextType | null>(null);
 
 export const MusicPlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<AppTheme>(DEFAULT_THEME);
+  const [baseTheme, setBaseTheme] = useState<AppTheme>(DEFAULT_THEME);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -185,7 +186,7 @@ export const MusicPlayerProvider: React.FC<{ children: ReactNode }> = ({ childre
   useEffect(() => {
     // 1. Load saved theme
     StorageService.getThemeId().then((id) => {
-      if (THEMES[id]) setTheme(THEMES[id]);
+      if (THEMES[id]) setBaseTheme(THEMES[id]);
     });
 
     // 2. Subscribe to audio player state
@@ -308,9 +309,39 @@ export const MusicPlayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   };
 
+  // Dynamic Material You Theme calculation
+  const theme = useMemo(() => {
+    let active = baseTheme;
+    if (playerCustomization?.materialYouDynamic && playbackState.currentTrack) {
+      active = extractDynamicThemeFromTrack(playbackState.currentTrack, baseTheme);
+    }
+    if (playerCustomization?.cornerRadius) {
+      const cr = playerCustomization.cornerRadius;
+      return {
+        ...active,
+        borderRadius: {
+          sm: Math.max(6, cr - 8),
+          md: cr,
+          lg: cr + 4,
+          card: cr,
+          pill: 9999,
+        },
+      };
+    }
+    return active;
+  }, [baseTheme, playerCustomization?.materialYouDynamic, playerCustomization?.cornerRadius, playbackState.currentTrack]);
+
+  const handleSetTheme = (newTheme: AppTheme) => {
+    setBaseTheme(newTheme);
+    StorageService.saveThemeId(newTheme.id);
+  };
+
   // Grouped collections
   const albums = useMemo(() => StorageScannerService.groupTracksByAlbum(tracks), [tracks]);
-  const artists = useMemo(() => StorageScannerService.groupTracksByArtist(tracks), [tracks]);
+  const artists = useMemo(
+    () => StorageScannerService.groupTracksByArtist(tracks, playerCustomization?.artistDelimiters),
+    [tracks, playerCustomization?.artistDelimiters]
+  );
   const genres = useMemo(() => StorageScannerService.groupTracksByGenre(tracks), [tracks]);
 
   const folders = useMemo(() => {
@@ -342,7 +373,7 @@ export const MusicPlayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     <MusicPlayerContext.Provider
       value={{
         theme,
-        setTheme,
+        setTheme: handleSetTheme,
         tracks,
         setTracks,
         playlists,

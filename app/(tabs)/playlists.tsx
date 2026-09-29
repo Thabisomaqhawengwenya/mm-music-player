@@ -1,25 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   FlatList,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
 import { TactileButton } from '../components/TactileButton';
+import { SmartMixService, SmartDailyMix } from '@/src/services/smartMixService';
+import { StorageService } from '@/src/services/playlistStorage';
+import { Playlist, ListeningStats } from '@/src/types';
 
 export default function PlaylistsTab() {
   const {
     theme,
+    tracks,
     playlists,
     setSelectedPlaylist,
     setPlaylistsOpen,
     setAddTrackToPlaylistTarget,
     handleScanDevice,
     setThemeSwitcherOpen,
+    handlePlayAll,
   } = useMusicPlayer();
+
+  const [stats, setStats] = useState<ListeningStats | null>(null);
+
+  useEffect(() => {
+    StorageService.getListeningStats().then((s) => setStats(s));
+  }, []);
+
+  const dailyMixes = useMemo(() => {
+    return SmartMixService.generateDailyMixes(tracks, stats || undefined);
+  }, [tracks, stats]);
+
+  const handleOpenMix = (mix: SmartDailyMix) => {
+    const virtualPlaylist: Playlist = {
+      id: mix.id,
+      name: mix.title,
+      createdAt: Date.now(),
+      trackIds: mix.tracks.map((t) => t.id),
+    };
+    setSelectedPlaylist(virtualPlaylist);
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -27,10 +53,10 @@ export default function PlaylistsTab() {
       <View style={styles.header}>
         <View>
           <Text style={[styles.brandEyebrow, { color: theme.accent }]}>
-            HI-FI OFFLINE AUDIO
+            PIXEL MATERIAL PLAYLISTS
           </Text>
           <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
-            Playlists
+            Playlists & Mixes
           </Text>
         </View>
 
@@ -51,62 +77,119 @@ export default function PlaylistsTab() {
         </View>
       </View>
 
-      <View style={styles.mainContainer}>
-        <View style={styles.playlistActionRow}>
-          <Text style={[styles.subSectionTitle, { color: theme.textSecondary }]}>
-            MY PLAYLISTS ({playlists.length})
-          </Text>
-          <TactileButton
-            onPress={() => {
-              setAddTrackToPlaylistTarget(null);
-              setPlaylistsOpen(true);
-            }}
-            style={[styles.createPlBtn, { backgroundColor: theme.accent }]}
-          >
-            <Ionicons name="add" size={16} color={theme.background} />
-            <Text style={[styles.createPlBtnText, { color: theme.background }]}>New</Text>
-          </TactileButton>
-        </View>
+      <FlatList
+        data={playlists}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+        ListHeaderComponent={
+          <View>
+            {/* Daily Mixes Shelf (PixelPlayer Feature) */}
+            <View style={styles.dailyMixSection}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="sparkles" size={16} color={theme.accent} />
+                  <Text style={[styles.subSectionTitle, { color: theme.textSecondary }]}>
+                    OFFLINE DAILY MIXES
+                  </Text>
+                </View>
+                <Text style={[styles.offlineBadge, { color: theme.accent, backgroundColor: `${theme.accent}1A` }]}>
+                  100% OFFLINE AI
+                </Text>
+              </View>
 
-        <FlatList
-          data={playlists}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          renderItem={({ item }) => (
-            <TactileButton
-              onPress={() => setSelectedPlaylist(item)}
-              style={[
-                styles.folderCard,
-                { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
-              ]}
-            >
-              <View style={[styles.folderIconBox, { backgroundColor: theme.surfaceLight }]}>
-                <Ionicons name="musical-notes" size={24} color={theme.accent} />
-              </View>
-              <View style={styles.folderInfoCol}>
-                <Text style={[styles.folderTitle, { color: theme.textPrimary }]} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={[styles.folderMeta, { color: theme.textSecondary }]}>
-                  {item.trackIds.length} {item.trackIds.length === 1 ? 'track' : 'tracks'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-            </TactileButton>
-          )}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="folder-open-outline" size={48} color={theme.textTertiary} />
-              <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
-                No custom playlists yet
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.dailyMixScroll}
+              >
+                {dailyMixes.map((mix) => (
+                  <TactileButton
+                    key={mix.id}
+                    onPress={() => handleOpenMix(mix)}
+                    style={[
+                      styles.dailyMixCard,
+                      { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
+                    ]}
+                  >
+                    <View style={[styles.dailyMixIconBox, { backgroundColor: `${mix.color}22` }]}>
+                      <Ionicons name={mix.icon as any} size={28} color={mix.color} />
+                    </View>
+
+                    <Text style={[styles.dailyMixTitle, { color: theme.textPrimary }]} numberOfLines={1}>
+                      {mix.title}
+                    </Text>
+                    <Text style={[styles.dailyMixSubtitle, { color: theme.textSecondary }]} numberOfLines={1}>
+                      {mix.subtitle}
+                    </Text>
+
+                    <View style={styles.dailyMixFooter}>
+                      <Text style={[styles.dailyMixCount, { color: theme.textTertiary }]}>
+                        {mix.tracks.length} {mix.tracks.length === 1 ? 'track' : 'tracks'}
+                      </Text>
+                      <TactileButton
+                        onPress={() => handlePlayAll(mix.tracks, false)}
+                        style={[styles.mixPlayBtn, { backgroundColor: mix.color }]}
+                      >
+                        <Ionicons name="play" size={13} color="#FFFFFF" />
+                      </TactileButton>
+                    </View>
+                  </TactileButton>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Custom Playlists Section Header */}
+            <View style={styles.playlistActionRow}>
+              <Text style={[styles.subSectionTitle, { color: theme.textSecondary }]}>
+                MY PLAYLISTS ({playlists.length})
               </Text>
-              <Text style={[styles.emptySubtitle, { color: theme.textTertiary }]}>
-                Tap "+ New" above to organize your offline music collection.
+              <TactileButton
+                onPress={() => {
+                  setAddTrackToPlaylistTarget(null);
+                  setPlaylistsOpen(true);
+                }}
+                style={[styles.createPlBtn, { backgroundColor: theme.accent }]}
+              >
+                <Ionicons name="add" size={16} color={theme.background} />
+                <Text style={[styles.createPlBtnText, { color: theme.background }]}>New</Text>
+              </TactileButton>
+            </View>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <TactileButton
+            onPress={() => setSelectedPlaylist(item)}
+            style={[
+              styles.folderCard,
+              { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
+            ]}
+          >
+            <View style={[styles.folderIconBox, { backgroundColor: theme.surfaceLight }]}>
+              <Ionicons name="musical-notes" size={24} color={theme.accent} />
+            </View>
+            <View style={styles.folderInfoCol}>
+              <Text style={[styles.folderTitle, { color: theme.textPrimary }]} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={[styles.folderMeta, { color: theme.textSecondary }]}>
+                {item.trackIds.length} {item.trackIds.length === 1 ? 'track' : 'tracks'}
               </Text>
             </View>
-          }
-        />
-      </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+          </TactileButton>
+        )}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="folder-open-outline" size={48} color={theme.textTertiary} />
+            <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
+              No custom playlists yet
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: theme.textTertiary }]}>
+              Tap "+ New" above to organize your offline music collection.
+            </Text>
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -146,20 +229,83 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mainContainer: {
-    flex: 1,
+  listContainer: {
     paddingHorizontal: 20,
+    paddingBottom: 160,
   },
-  playlistActionRow: {
+  dailyMixSection: {
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  sectionHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   subSectionTitle: {
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.2,
+  },
+  offlineBadge: {
+    fontSize: 10,
+    fontWeight: '800',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    letterSpacing: 0.5,
+  },
+  dailyMixScroll: {
+    gap: 12,
+    paddingRight: 20,
+  },
+  dailyMixCard: {
+    width: 156,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  dailyMixIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dailyMixTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  dailyMixSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 10,
+  },
+  dailyMixFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dailyMixCount: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  mixPlayBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playlistActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 18,
+    paddingBottom: 12,
   },
   createPlBtn: {
     flexDirection: 'row',
@@ -172,9 +318,6 @@ const styles = StyleSheet.create({
   createPlBtnText: {
     fontSize: 13,
     fontWeight: '700',
-  },
-  listContainer: {
-    paddingBottom: 160,
   },
   folderCard: {
     flexDirection: 'row',
@@ -206,7 +349,7 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 60,
+    paddingTop: 40,
     paddingHorizontal: 30,
     gap: 12,
   },

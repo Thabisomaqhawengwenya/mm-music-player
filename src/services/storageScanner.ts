@@ -2,6 +2,7 @@ import * as MediaLibrary from 'expo-media-library/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import { Track, Album, Artist, Genre } from '../types';
 import { StorageService } from './playlistStorage';
+import { SmartMixService } from './smartMixService';
 
 // High quality offline demo audio samples for instant playback in emulator, Expo Go, or test environments
 export const DEMO_TRACKS: Track[] = [
@@ -182,30 +183,38 @@ export class StorageScannerService {
   }
 
   /**
-   * Group tracks into Artist objects
+   * Group tracks into Artist objects, parsing multi-artist collaborations with configurable delimiters
    */
-  static groupTracksByArtist(tracks: Track[]): Artist[] {
+  static groupTracksByArtist(tracks: Track[], delimiters?: string[]): Artist[] {
     const map = new Map<string, Track[]>();
 
     tracks.forEach(track => {
-      const artistKey = track.artist || 'Unknown Artist';
-      if (!map.has(artistKey)) {
-        map.set(artistKey, []);
-      }
-      map.get(artistKey)!.push(track);
+      const parsedArtists = SmartMixService.parseArtists(track.artist, delimiters);
+      parsedArtists.forEach(artistName => {
+        if (!map.has(artistName)) {
+          map.set(artistName, []);
+        }
+        // Avoid duplicate track insertions for same artist bucket
+        const list = map.get(artistName)!;
+        if (!list.some(t => t.id === track.id)) {
+          list.push(track);
+        }
+      });
     });
 
-    return Array.from(map.entries()).map(([name, artistTracks]) => {
-      const first = artistTracks[0];
-      const uniqueAlbums = new Set(artistTracks.map(t => t.album)).size;
-      return {
-        name,
-        trackCount: artistTracks.length,
-        albumCount: uniqueAlbums,
-        artwork: first.artwork,
-        tracks: artistTracks,
-      };
-    });
+    return Array.from(map.entries())
+      .map(([name, artistTracks]) => {
+        const first = artistTracks[0];
+        const uniqueAlbums = new Set(artistTracks.map(t => t.album)).size;
+        return {
+          name,
+          trackCount: artistTracks.length,
+          albumCount: uniqueAlbums,
+          artwork: first.artwork,
+          tracks: artistTracks,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /**

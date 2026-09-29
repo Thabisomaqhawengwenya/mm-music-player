@@ -1,4 +1,5 @@
 import { AppTheme } from '../../src/types';
+import { MATERIAL_YOU_PRESETS } from '../../src/utils/dynamicTheme';
 
 export const THEMES: Record<string, AppTheme> = {
   oled: {
@@ -68,7 +69,8 @@ export const THEMES: Record<string, AppTheme> = {
     cardBg: '#151A24',
     danger: '#FB7185',
     success: '#34D399',
-  }
+  },
+  ...MATERIAL_YOU_PRESETS,
 };
 
-export const DEFAULT_THEME = THEMES.oled;
+export const DEFAULT_THEME = THEMES.pixel_monet_dark || THEMES.oled;

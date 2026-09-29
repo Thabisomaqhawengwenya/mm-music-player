@@ -515,10 +515,65 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {activeCategory === 'interface' && (
           <View style={styles.subPageContainer}>
             <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
-              Customize color themes, accent glows, and playback screen appearance.
+              Customize Material You dynamic theming, corner radii, and color palettes.
             </Text>
 
-            <Text style={[styles.sectionHeading, { color: theme.accent }]}>THEME PALETTE</Text>
+            {/* Material You Dynamic Colors */}
+            <Text style={[styles.sectionHeading, { color: theme.accent }]}>MATERIAL YOU DYNAMIC THEMING</Text>
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Dynamic Track Color Extraction</Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    Extract Material You tones from current track or album art (100% offline)
+                  </Text>
+                </View>
+                <Switch
+                  value={playerCustomization.materialYouDynamic}
+                  onValueChange={(val) => handleUpdatePlayerCustomization('materialYouDynamic', val)}
+                  trackColor={{ false: theme.surfaceLight, true: theme.accent }}
+                  thumbColor={theme.textPrimary}
+                />
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Corner Radius & Shape Style</Text>
+              <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                Material 3 card, modal, and button curvature
+              </Text>
+              <View style={styles.pillRow}>
+                {[
+                  { label: 'Compact (12px)', val: 12 },
+                  { label: 'Standard (18px)', val: 18 },
+                  { label: 'Pixel Pill (24px)', val: 24 },
+                  { label: 'Ultra Round (32px)', val: 32 },
+                ].map((item) => (
+                  <TactileButton
+                    key={item.val}
+                    onPress={() => handleUpdatePlayerCustomization('cornerRadius', item.val)}
+                    style={[
+                      styles.filterPill,
+                      {
+                        backgroundColor: (playerCustomization.cornerRadius ?? 18) === item.val ? theme.accent : theme.surfaceLight,
+                        borderColor: (playerCustomization.cornerRadius ?? 18) === item.val ? theme.accent : theme.surfaceBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterPillText,
+                        { color: (playerCustomization.cornerRadius ?? 18) === item.val ? theme.background : theme.textSecondary },
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </TactileButton>
+                ))}
+              </View>
+            </View>
+
+            <Text style={[styles.sectionHeading, { color: theme.accent, marginTop: 22 }]}>THEME PALETTE</Text>
             <View style={styles.themeGrid}>
               {Object.values(THEMES).map((t) => {
                 const isSelected = theme.id === t.id;
@@ -952,6 +1007,48 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </Text>
                   </TactileButton>
                 ))}
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.surfaceBorder }]} />
+
+              <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>Smart Artist Parsing</Text>
+              <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                Separate collaborating artists into their own artist profiles using delimiters
+              </Text>
+
+              <View style={[styles.pillRow, { flexWrap: 'wrap', marginTop: 8 }]}>
+                {[';', ',', '&', 'feat.', 'ft.', 'vs.', '/'].map((delim) => {
+                  const activeDelims = playerCustomization.artistDelimiters || [';', ',', '&', 'feat.', 'ft.'];
+                  const isActive = activeDelims.includes(delim);
+                  return (
+                    <TactileButton
+                      key={delim}
+                      onPress={() => {
+                        const next = isActive
+                          ? activeDelims.filter((d) => d !== delim)
+                          : [...activeDelims, delim];
+                        handleUpdatePlayerCustomization('artistDelimiters', next);
+                      }}
+                      style={[
+                        styles.filterPill,
+                        {
+                          backgroundColor: isActive ? theme.accent : theme.surfaceLight,
+                          borderColor: isActive ? theme.accent : theme.surfaceBorder,
+                          marginBottom: 6,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.filterPillText,
+                          { color: isActive ? theme.background : theme.textSecondary },
+                        ]}
+                      >
+                        {delim}
+                      </Text>
+                    </TactileButton>
+                  );
+                })}
               </View>
             </View>
           </View>
