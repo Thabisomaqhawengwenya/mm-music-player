@@ -45,6 +45,7 @@ import { MusicPet } from '../../app/pet/MusicPet';
 import { PET_PROFILES, KAOMOJI_REACTIONS } from '../../app/pet/types';
 import { TactileButton } from './TactileButton';
 import { ListeningStatsView } from './ListeningStatsView';
+import { LordiconAnimatedIcon } from './LordiconAnimatedIcon';
 
 type SettingsCategory =
   | 'root'
@@ -420,11 +421,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           ) : (
             <View style={{ width: 8 }} />
           )}
-          <Text style={[styles.screenTitle, { color: theme.textPrimary }]}>
-            {activeCategory === 'root'
-              ? 'Settings'
-              : categories.find((c) => c.id === activeCategory)?.title || 'Settings'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {activeCategory === 'root' && (
+              <LordiconAnimatedIcon
+                name="settings"
+                size={26}
+                color={theme.accent}
+                loop={true}
+                fallbackIcon="settings"
+              />
+            )}
+            <Text style={[styles.screenTitle, { color: theme.textPrimary }]}>
+              {activeCategory === 'root'
+                ? 'Settings'
+                : categories.find((c) => c.id === activeCategory)?.title || 'Settings'}
+            </Text>
+          </View>
         </View>
 
         <TactileButton

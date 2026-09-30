@@ -7,13 +7,18 @@ import { MiniPlayer } from '../components/MiniPlayer';
 import { FloatingPetOverlay } from '../pet/FloatingPetOverlay';
 import { HapticTab } from '../components/HapticTab';
 
+import { LordiconAnimatedIcon } from '../components/LordiconAnimatedIcon';
+import { LordiconIconName } from '../../assets/lordicon';
+
 function TabPillIcon({
+  lordiconName,
   name,
   outlineName,
   focused,
   color,
   accentColor,
 }: {
+  lordiconName: LordiconIconName;
   name: keyof typeof Ionicons.glyphMap;
   outlineName: keyof typeof Ionicons.glyphMap;
   focused: boolean;
@@ -32,10 +37,14 @@ function TabPillIcon({
         marginBottom: 2,
       }}
     >
-      <Ionicons
-        name={focused ? name : outlineName}
-        size={20}
+      <LordiconAnimatedIcon
+        name={lordiconName}
+        size={22}
         color={focused ? accentColor : color}
+        focused={focused}
+        trigger="playOnFocus"
+        fallbackIcon={name}
+        fallbackOutlineIcon={outlineName}
       />
     </View>
   );
@@ -84,6 +93,7 @@ export default function TabLayout() {
             title: 'Library',
             tabBarIcon: ({ color, focused }) => (
               <TabPillIcon
+                lordiconName="music"
                 name="musical-notes"
                 outlineName="musical-notes-outline"
                 focused={focused}
@@ -101,6 +111,7 @@ export default function TabLayout() {
             title: 'Mixes',
             tabBarIcon: ({ color, focused }) => (
               <TabPillIcon
+                lordiconName="playlist"
                 name="albums"
                 outlineName="albums-outline"
                 focused={focused}
@@ -118,6 +129,7 @@ export default function TabLayout() {
             title: 'Vibes',
             tabBarIcon: ({ color, focused }) => (
               <TabPillIcon
+                lordiconName="sparkles"
                 name="sparkles"
                 outlineName="sparkles-outline"
                 focused={focused}
@@ -135,6 +147,7 @@ export default function TabLayout() {
             title: 'Search',
             tabBarIcon: ({ color, focused }) => (
               <TabPillIcon
+                lordiconName="search"
                 name="search"
                 outlineName="search-outline"
                 focused={focused}
@@ -152,6 +165,7 @@ export default function TabLayout() {
             title: 'Settings',
             tabBarIcon: ({ color, focused }) => (
               <TabPillIcon
+                lordiconName="settings"
                 name="settings"
                 outlineName="settings-outline"
                 focused={focused}

@@ -19,6 +19,8 @@ import { AlbumsView } from '../components/AlbumsView';
 import { GenresView } from '../components/GenresView';
 import { PixelArtworkFallback } from '../components/PixelArtworkFallback';
 import { formatFileSize } from '@/src/utils/formatters';
+import { LordiconAnimatedIcon } from '../components/LordiconAnimatedIcon';
+import { LordiconIconName } from '../../assets/lordicon';
 
 const HeroEqualizerBars: React.FC<{ isPlaying: boolean; color: string }> = ({ isPlaying, color }) => {
   const anim1 = useRef(new Animated.Value(0.3)).current;
@@ -89,13 +91,13 @@ const HeroEqualizerBars: React.FC<{ isPlaying: boolean; color: string }> = ({ is
   );
 };
 
-const SUB_TABS: { key: LibrarySubTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'tracks', label: 'Tracks', icon: 'musical-notes' },
-  { key: 'albums', label: 'Albums', icon: 'disc' },
+const SUB_TABS: { key: LibrarySubTab; label: string; icon: keyof typeof Ionicons.glyphMap; lordiconName?: LordiconIconName }[] = [
+  { key: 'tracks', label: 'Tracks', icon: 'musical-notes', lordiconName: 'music' },
+  { key: 'albums', label: 'Albums', icon: 'disc', lordiconName: 'playlist' },
   { key: 'artists', label: 'Artists', icon: 'people' },
   { key: 'folders', label: 'Folders', icon: 'folder' },
   { key: 'genres', label: 'Genres', icon: 'grid' },
-  { key: 'favorites', label: 'Favorites', icon: 'heart' },
+  { key: 'favorites', label: 'Favorites', icon: 'heart', lordiconName: 'heart' },
 ];
 
 export default function LibraryTab() {
@@ -253,11 +255,21 @@ export default function LibraryTab() {
                     activeScale={0.90}
                     style={[styles.heroPlayBtn, { backgroundColor: theme.accent }]}
                   >
-                    <Ionicons
-                      name={isCurrentHeroPlaying ? 'pause' : 'play'}
-                      size={22}
-                      color={theme.background}
-                    />
+                    {isCurrentHeroPlaying ? (
+                      <Ionicons
+                        name="pause"
+                        size={22}
+                        color={theme.background}
+                      />
+                    ) : (
+                      <LordiconAnimatedIcon
+                        name="play"
+                        size={22}
+                        color={theme.background}
+                        trigger="click"
+                        fallbackIcon="play"
+                      />
+                    )}
                   </TactileButton>
                 </View>
               </TactileButton>
@@ -288,11 +300,22 @@ export default function LibraryTab() {
                         },
                       ]}
                     >
-                      <Ionicons
-                        name={item.icon}
-                        size={14}
-                        color={isActive ? theme.background : theme.textSecondary}
-                      />
+                      {item.lordiconName ? (
+                        <LordiconAnimatedIcon
+                          name={item.lordiconName}
+                          size={15}
+                          color={isActive ? theme.background : theme.textSecondary}
+                          focused={isActive}
+                          trigger="playOnFocus"
+                          fallbackIcon={item.icon}
+                        />
+                      ) : (
+                        <Ionicons
+                          name={item.icon}
+                          size={14}
+                          color={isActive ? theme.background : theme.textSecondary}
+                        />
+                      )}
                       <Text
                         style={[
                           styles.chipText,

@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Track, Album, Artist, AppTheme } from '@/src/types';
 import { TactileButton } from './TactileButton';
 import { TrackListItem } from './TrackListItem';
+import { LordiconAnimatedIcon } from './LordiconAnimatedIcon';
 
 interface SearchHubViewProps {
   tracks: Track[];
@@ -104,7 +105,14 @@ export const SearchHubView: React.FC<SearchHubViewProps> = ({
             { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
           ]}
         >
-          <Ionicons name="search" size={18} color={theme.textTertiary} />
+          <LordiconAnimatedIcon
+            name="search"
+            size={20}
+            color={query.length > 0 ? theme.accent : theme.textTertiary}
+            focused={query.length > 0}
+            trigger="playOnFocus"
+            fallbackIcon="search"
+          />
           <TextInput
             value={query}
             onChangeText={setQuery}

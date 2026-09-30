@@ -5,6 +5,7 @@ import { Track, AppTheme } from '@/src/types';
 import { TactileButton } from './TactileButton';
 import { AudioPlayerService } from '@/src/services/audioPlayer';
 import { PixelArtworkFallback } from './PixelArtworkFallback';
+import { LordiconAnimatedIcon } from './LordiconAnimatedIcon';
 
 interface MiniPlayerProps {
   track: Track;
@@ -111,11 +112,21 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
               onPress={() => player.togglePlayPause()}
               style={[styles.playButton, { backgroundColor: theme.accent }]}
             >
-              <Ionicons
-                name={isPlaying ? 'pause' : 'play'}
-                size={18}
-                color={theme.background}
-              />
+              {isPlaying ? (
+                <Ionicons
+                  name="pause"
+                  size={18}
+                  color={theme.background}
+                />
+              ) : (
+                <LordiconAnimatedIcon
+                  name="play"
+                  size={18}
+                  color={theme.background}
+                  trigger="click"
+                  fallbackIcon="play"
+                />
+              )}
             </TactileButton>
 
             <TactileButton

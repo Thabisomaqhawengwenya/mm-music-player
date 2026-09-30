@@ -13,6 +13,7 @@ import { TactileButton } from '../components/TactileButton';
 import { SmartMixService, SmartDailyMix } from '@/src/services/smartMixService';
 import { StorageService } from '@/src/services/playlistStorage';
 import { Playlist, ListeningStats } from '@/src/types';
+import { LordiconAnimatedIcon } from '../components/LordiconAnimatedIcon';
 
 export default function PlaylistsTab() {
   const {
@@ -51,13 +52,22 @@ export default function PlaylistsTab() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.brandEyebrow, { color: theme.accent }]}>
-            PIXEL MATERIAL PLAYLISTS
-          </Text>
-          <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
-            Playlists & Mixes
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <LordiconAnimatedIcon
+            name="playlist"
+            size={32}
+            color={theme.accent}
+            loop={true}
+            fallbackIcon="albums"
+          />
+          <View>
+            <Text style={[styles.brandEyebrow, { color: theme.accent }]}>
+              PIXEL MATERIAL PLAYLISTS
+            </Text>
+            <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
+              Playlists & Mixes
+            </Text>
+          </View>
         </View>
 
         <View style={styles.headerButtonsRow}>
@@ -87,7 +97,13 @@ export default function PlaylistsTab() {
             <View style={styles.dailyMixSection}>
               <View style={styles.sectionHeaderRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="sparkles" size={16} color={theme.accent} />
+                  <LordiconAnimatedIcon
+                    name="sparkles"
+                    size={18}
+                    color={theme.accent}
+                    loop={true}
+                    fallbackIcon="sparkles"
+                  />
                   <Text style={[styles.subSectionTitle, { color: theme.textSecondary }]}>
                     OFFLINE DAILY MIXES
                   </Text>

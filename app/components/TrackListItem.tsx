@@ -16,6 +16,7 @@ import { Track, AppTheme } from '@/src/types';
 import { TactileButton } from './TactileButton';
 import { PixelArtworkFallback } from './PixelArtworkFallback';
 import { formatTime } from '@/src/utils/formatters';
+import { LordiconAnimatedIcon } from './LordiconAnimatedIcon';
 
 interface TrackListItemProps {
   track: Track;
@@ -119,11 +120,20 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
 
           {isCurrent && track.artwork && (
             <View style={[styles.activeIndicatorOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-              <Ionicons
-                name={isPlaying ? 'volume-high' : 'pause'}
-                size={16}
-                color={theme.accent}
-              />
+              {isPlaying ? (
+                <LordiconAnimatedIcon
+                  name="music"
+                  size={18}
+                  color={theme.accent}
+                  loop={true}
+                />
+              ) : (
+                <Ionicons
+                  name="pause"
+                  size={16}
+                  color={theme.accent}
+                />
+              )}
             </View>
           )}
         </View>
@@ -158,7 +168,7 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
         </Text>
       </TactileButton>
 
-      {/* Favorite Button */}
+      {/* Favorite Button with Lordicon Animated Heart */}
       <TouchableOpacity
         activeOpacity={0.7}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -172,10 +182,14 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
         style={styles.actionBtn}
       >
         <Animated.View style={{ transform: [{ scale: heartScaleAnim }] }}>
-          <Ionicons
-            name={track.isFavorite ? 'heart' : 'heart-outline'}
-            size={18}
+          <LordiconAnimatedIcon
+            name="heart"
+            size={20}
             color={track.isFavorite ? '#FF2D55' : theme.textTertiary}
+            focused={track.isFavorite}
+            trigger="click"
+            fallbackIcon="heart"
+            fallbackOutlineIcon="heart-outline"
           />
         </Animated.View>
       </TouchableOpacity>

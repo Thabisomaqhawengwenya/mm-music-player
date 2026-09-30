@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
 import { VibesHubView } from '../components/VibesHubView';
 import { TactileButton } from '../components/TactileButton';
+import { LordiconAnimatedIcon } from '../components/LordiconAnimatedIcon';
 
 export default function VibesTab() {
   const {
@@ -27,13 +28,22 @@ export default function VibesTab() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.brandEyebrow, { color: theme.accent }]}>
-            HI-FI OFFLINE AUDIO
-          </Text>
-          <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
-            Vibes Hub
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <LordiconAnimatedIcon
+            name="sparkles"
+            size={32}
+            color={theme.accent}
+            loop={true}
+            fallbackIcon="sparkles"
+          />
+          <View>
+            <Text style={[styles.brandEyebrow, { color: theme.accent }]}>
+              HI-FI OFFLINE AUDIO
+            </Text>
+            <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
+              Vibes Hub
+            </Text>
+          </View>
         </View>
 
         <View style={styles.headerButtonsRow}>
