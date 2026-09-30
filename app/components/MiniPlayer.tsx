@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Track, AppTheme } from '@/src/types';
 import { TactileButton } from './TactileButton';
 import { AudioPlayerService } from '@/src/services/audioPlayer';
+import { PixelArtworkFallback } from './PixelArtworkFallback';
 
 interface MiniPlayerProps {
   track: Track;
@@ -90,9 +91,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
             {track.artwork ? (
               <Image source={{ uri: track.artwork }} style={styles.artImage} />
             ) : (
-              <View style={[styles.artPlaceholder, { backgroundColor: theme.surfaceLight }]}>
-                <Ionicons name="musical-notes" size={16} color={theme.accent} />
-              </View>
+              <PixelArtworkFallback seed={track.title} size={42} cornerRadius={21} />
             )}
           </Animated.View>
 

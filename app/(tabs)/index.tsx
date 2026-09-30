@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   FlatList,
   ScrollView,
   ActivityIndicator,
+  Image,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMusicPlayer, LibrarySubTab } from '../context/MusicPlayerContext';
@@ -14,7 +17,86 @@ import { TactileButton } from '../components/TactileButton';
 import { TrackListItem } from '../components/TrackListItem';
 import { AlbumsView } from '../components/AlbumsView';
 import { GenresView } from '../components/GenresView';
+import { PixelArtworkFallback } from '../components/PixelArtworkFallback';
 import { formatFileSize } from '@/src/utils/formatters';
+
+const HeroEqualizerBars: React.FC<{ isPlaying: boolean; color: string }> = ({ isPlaying, color }) => {
+  const anim1 = useRef(new Animated.Value(0.3)).current;
+  const anim2 = useRef(new Animated.Value(0.7)).current;
+  const anim3 = useRef(new Animated.Value(0.4)).current;
+  const anim4 = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    if (!isPlaying) {
+      anim1.setValue(0.2);
+      anim2.setValue(0.3);
+      anim3.setValue(0.2);
+      anim4.setValue(0.3);
+      return;
+    }
+
+    const createPulse = (val: Animated.Value, min: number, max: number, duration: number) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.timing(val, {
+            toValue: max,
+            duration,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+            useNativeDriver: false,
+          }),
+          Animated.timing(val, {
+            toValue: min,
+            duration,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+            useNativeDriver: false,
+          }),
+        ])
+      );
+    };
+
+    const a1 = createPulse(anim1, 0.2, 1.0, 360);
+    const a2 = createPulse(anim2, 0.15, 0.85, 440);
+    const a3 = createPulse(anim3, 0.3, 0.95, 300);
+    const a4 = createPulse(anim4, 0.2, 0.8, 480);
+
+    Animated.parallel([a1, a2, a3, a4]).start();
+
+    return () => {
+      a1.stop();
+      a2.stop();
+      a3.stop();
+      a4.stop();
+    };
+  }, [isPlaying]);
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 14, gap: 2.5 }}>
+      {[anim1, anim2, anim3, anim4].map((anim, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            width: 3,
+            backgroundColor: color,
+            borderRadius: 1.5,
+            height: anim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [3, 14],
+            }),
+          }}
+        />
+      ))}
+    </View>
+  );
+};
+
+const SUB_TABS: { key: LibrarySubTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'tracks', label: 'Tracks', icon: 'musical-notes' },
+  { key: 'albums', label: 'Albums', icon: 'disc' },
+  { key: 'artists', label: 'Artists', icon: 'people' },
+  { key: 'folders', label: 'Folders', icon: 'folder' },
+  { key: 'genres', label: 'Genres', icon: 'grid' },
+  { key: 'favorites', label: 'Favorites', icon: 'heart' },
+];
 
 export default function LibraryTab() {
   const {
@@ -45,16 +127,25 @@ export default function LibraryTab() {
     handleScanDevice,
     handlePickFiles,
     setThemeSwitcherOpen,
+    setNowPlayingOpen,
+    player,
   } = useMusicPlayer();
+
+  const currentOrHeroTrack = playbackState.currentTrack || (tracks.length > 0 ? tracks[0] : null);
+  const isCurrentHeroPlaying = playbackState.isPlaying && playbackState.currentTrack?.id === currentOrHeroTrack?.id;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.brandEyebrow, { color: theme.accent }]}>
-            HI-FI OFFLINE AUDIO
-          </Text>
+          <View style={styles.brandBadgeRow}>
+            <View style={[styles.brandBadge, { backgroundColor: `${theme.accent}1A` }]}>
+              <Text style={[styles.brandBadgeText, { color: theme.accent }]}>
+                MATERIAL YOU GUI
+              </Text>
+            </View>
+          </View>
           <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>
             Local Music
           </Text>
@@ -66,6 +157,13 @@ export default function LibraryTab() {
             style={[styles.headerIconBtn, { backgroundColor: theme.surfaceLight }]}
           >
             <Ionicons name="color-palette-outline" size={20} color={theme.accent} />
+          </TactileButton>
+
+          <TactileButton
+            onPress={handlePickFiles}
+            style={[styles.headerIconBtn, { backgroundColor: theme.surfaceLight }]}
+          >
+            <Ionicons name="folder-open-outline" size={20} color={theme.accent} />
           </TactileButton>
 
           <TactileButton
@@ -88,38 +186,120 @@ export default function LibraryTab() {
           </View>
         ) : (
           <View style={{ flex: 1 }}>
-            {/* Library Sub-Tabs Ribbon */}
+            {/* Graphical Quick-Play Hero Stage */}
+            {currentOrHeroTrack && (
+              <TactileButton
+                onPress={() => setNowPlayingOpen(true)}
+                activeScale={0.98}
+                style={styles.heroCardWrapper}
+              >
+                <View
+                  style={[
+                    styles.heroCard,
+                    {
+                      backgroundColor: theme.surface,
+                      borderColor: theme.surfaceBorder,
+                    },
+                  ]}
+                >
+                  <View style={styles.heroArtContainer}>
+                    {currentOrHeroTrack.artwork ? (
+                      <Image
+                        source={{ uri: currentOrHeroTrack.artwork }}
+                        style={styles.heroArtImage}
+                      />
+                    ) : (
+                      <PixelArtworkFallback
+                        seed={currentOrHeroTrack.title}
+                        size={56}
+                        cornerRadius={14}
+                      />
+                    )}
+                  </View>
+
+                  <View style={styles.heroInfoCol}>
+                    <View style={styles.heroTagRow}>
+                      <View
+                        style={[
+                          styles.heroBadge,
+                          { backgroundColor: `${theme.accent}18` },
+                        ]}
+                      >
+                        <Text style={[styles.heroBadgeText, { color: theme.accent }]}>
+                          {playbackState.currentTrack ? 'NOW PLAYING' : 'QUICK START'}
+                        </Text>
+                      </View>
+                      {isCurrentHeroPlaying && (
+                        <HeroEqualizerBars isPlaying={true} color={theme.accent} />
+                      )}
+                    </View>
+
+                    <Text style={[styles.heroTitle, { color: theme.textPrimary }]} numberOfLines={1}>
+                      {currentOrHeroTrack.title}
+                    </Text>
+                    <Text style={[styles.heroArtist, { color: theme.textSecondary }]} numberOfLines={1}>
+                      {currentOrHeroTrack.artist} • {currentOrHeroTrack.album}
+                    </Text>
+                  </View>
+
+                  <TactileButton
+                    onPress={() => {
+                      if (playbackState.currentTrack?.id === currentOrHeroTrack.id) {
+                        player.togglePlayPause();
+                      } else {
+                        handlePlayTrack(currentOrHeroTrack, libraryTracks);
+                      }
+                    }}
+                    activeScale={0.90}
+                    style={[styles.heroPlayBtn, { backgroundColor: theme.accent }]}
+                  >
+                    <Ionicons
+                      name={isCurrentHeroPlaying ? 'pause' : 'play'}
+                      size={22}
+                      color={theme.background}
+                    />
+                  </TactileButton>
+                </View>
+              </TactileButton>
+            )}
+
+            {/* Material You Filter Chips Ribbon */}
             <View style={styles.subTabsContainer}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.subTabsRow}
               >
-                {[
-                  { key: 'tracks', label: 'Tracks' },
-                  { key: 'albums', label: 'Albums' },
-                  { key: 'artists', label: 'Artists' },
-                  { key: 'folders', label: 'Folders' },
-                  { key: 'genres', label: 'Genres' },
-                  { key: 'favorites', label: 'Favorites' },
-                ].map((item) => {
+                {SUB_TABS.map((item) => {
                   const isActive = librarySubTab === item.key;
                   return (
                     <TactileButton
                       key={item.key}
                       onPress={() => {
-                        setLibrarySubTab(item.key as LibrarySubTab);
+                        setLibrarySubTab(item.key);
                         setSelectedFolder(null);
                       }}
+                      activeScale={0.95}
                       style={[
-                        styles.subTabItem,
-                        isActive && { borderBottomColor: theme.accent, borderBottomWidth: 2 },
+                        styles.chipBtn,
+                        {
+                          backgroundColor: isActive ? theme.accent : theme.surface,
+                          borderColor: isActive ? theme.accent : theme.surfaceBorder,
+                        },
                       ]}
                     >
+                      <Ionicons
+                        name={item.icon}
+                        size={14}
+                        color={isActive ? theme.background : theme.textSecondary}
+                      />
                       <Text
                         style={[
-                          styles.subTabText,
-                          { color: isActive ? theme.accent : theme.textSecondary },
+                          styles.chipText,
+                          {
+                            color: isActive ? theme.background : theme.textPrimary,
+                            fontWeight: isActive ? '700' : '500',
+                          },
                         ]}
                       >
                         {item.label}
@@ -298,11 +478,20 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 10,
   },
-  brandEyebrow: {
-    fontSize: 10,
+  brandBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  brandBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  brandBadgeText: {
+    fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 2.2,
-    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   brandTitle: {
     fontSize: 24,
@@ -321,6 +510,73 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  heroCardWrapper: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    marginTop: 2,
+  },
+  heroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  heroArtContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroArtImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroInfoCol: {
+    flex: 1,
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  heroTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  heroBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  heroBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  heroArtist: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  heroPlayBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   mainContainer: {
     flex: 1,
   },
@@ -335,19 +591,23 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   subTabsContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    paddingVertical: 4,
   },
   subTabsRow: {
     paddingHorizontal: 20,
-    gap: 24,
+    gap: 8,
   },
-  subTabItem: {
-    paddingVertical: 12,
+  chipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
   },
-  subTabText: {
-    fontSize: 14,
-    fontWeight: '600',
+  chipText: {
+    fontSize: 13,
   },
   breadcrumbBar: {
     flexDirection: 'row',

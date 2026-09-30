@@ -7,6 +7,40 @@ import { MiniPlayer } from '../components/MiniPlayer';
 import { FloatingPetOverlay } from '../pet/FloatingPetOverlay';
 import { HapticTab } from '../components/HapticTab';
 
+function TabPillIcon({
+  name,
+  outlineName,
+  focused,
+  color,
+  accentColor,
+}: {
+  name: keyof typeof Ionicons.glyphMap;
+  outlineName: keyof typeof Ionicons.glyphMap;
+  focused: boolean;
+  color: any;
+  accentColor: string;
+}) {
+  return (
+    <View
+      style={{
+        width: 52,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: focused ? `${accentColor}26` : 'transparent',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 2,
+      }}
+    >
+      <Ionicons
+        name={focused ? name : outlineName}
+        size={20}
+        color={focused ? accentColor : color}
+      />
+    </View>
+  );
+}
+
 export default function TabLayout() {
   const {
     theme,
@@ -20,125 +54,134 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: theme.accent,
-          tabBarInactiveTintColor: theme.textTertiary,
+          tabBarInactiveTintColor: theme.textSecondary,
           tabBarButton: HapticTab,
           tabBarStyle: {
             backgroundColor: theme.surface,
             borderTopColor: theme.surfaceBorder,
             borderTopWidth: 1,
-            height: Platform.OS === 'ios' ? 84 : 64,
+            height: Platform.OS === 'ios' ? 86 : 68,
             paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-            paddingTop: 6,
+            paddingTop: 8,
+            elevation: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -3 },
+            shadowOpacity: 0.12,
+            shadowRadius: 8,
           },
           tabBarLabelStyle: {
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: '600',
+            letterSpacing: 0.1,
           },
           headerShown: false,
         }}
       >
+        {/* 1. Library / Home */}
         <Tabs.Screen
           name="index"
           options={{
             title: 'Library',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={focused ? 'musical-notes' : 'musical-notes-outline'}
-                size={20}
+              <TabPillIcon
+                name="musical-notes"
+                outlineName="musical-notes-outline"
+                focused={focused}
                 color={color}
+                accentColor={theme.accent}
               />
             ),
           }}
         />
-        <Tabs.Screen
-          name="search"
-          options={{
-            title: 'Search',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={focused ? 'search' : 'search-outline'}
-                size={20}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="artists"
-          options={{
-            title: 'Artists',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={focused ? 'people' : 'people-outline'}
-                size={20}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="albums"
-          options={{
-            title: 'Albums',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={focused ? 'disc' : 'disc-outline'}
-                size={20}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="genres"
-          options={{
-            title: 'Genres',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={focused ? 'grid' : 'grid-outline'}
-                size={20}
-                color={color}
-              />
-            ),
-          }}
-        />
+
+        {/* 2. Playlists & Daily Mixes */}
         <Tabs.Screen
           name="playlists"
           options={{
-            title: 'Playlists',
+            title: 'Mixes',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={focused ? 'albums' : 'albums-outline'}
-                size={20}
+              <TabPillIcon
+                name="albums"
+                outlineName="albums-outline"
+                focused={focused}
                 color={color}
+                accentColor={theme.accent}
               />
             ),
           }}
         />
+
+        {/* 3. Vibes Hub & Deck */}
         <Tabs.Screen
           name="vibes"
           options={{
             title: 'Vibes',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={focused ? 'sparkles' : 'sparkles-outline'}
-                size={20}
+              <TabPillIcon
+                name="sparkles"
+                outlineName="sparkles-outline"
+                focused={focused}
                 color={color}
+                accentColor={theme.accent}
               />
             ),
           }}
         />
+
+        {/* 4. Instant Search */}
+        <Tabs.Screen
+          name="search"
+          options={{
+            title: 'Search',
+            tabBarIcon: ({ color, focused }) => (
+              <TabPillIcon
+                name="search"
+                outlineName="search-outline"
+                focused={focused}
+                color={color}
+                accentColor={theme.accent}
+              />
+            ),
+          }}
+        />
+
+        {/* 5. Settings */}
         <Tabs.Screen
           name="settings"
           options={{
             title: 'Settings',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={focused ? 'settings' : 'settings-outline'}
-                size={20}
+              <TabPillIcon
+                name="settings"
+                outlineName="settings-outline"
+                focused={focused}
                 color={color}
+                accentColor={theme.accent}
               />
             ),
+          }}
+        />
+
+        {/* Auxiliary screens - accessible by route, hidden from tab bar */}
+        <Tabs.Screen
+          name="artists"
+          options={{
+            href: null,
+            headerShown: false,
+          }}
+        />
+        <Tabs.Screen
+          name="albums"
+          options={{
+            href: null,
+            headerShown: false,
+          }}
+        />
+        <Tabs.Screen
+          name="genres"
+          options={{
+            href: null,
+            headerShown: false,
           }}
         />
       </Tabs>
