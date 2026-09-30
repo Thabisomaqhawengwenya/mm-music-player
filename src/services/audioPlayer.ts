@@ -1,8 +1,12 @@
+import { Platform, PermissionsAndroid } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library/legacy';
 import {
   createAudioPlayer,
   AudioModule,
   AudioPlayer,
   AudioStatus,
+  requestNotificationPermissionsAsync,
 } from 'expo-audio';
 import { Track, PlaybackState, RepeatMode } from '../types';
 
@@ -52,8 +56,43 @@ export class AudioPlayerService {
         interruptionMode: 'doNotMix',
         allowsRecording: false,
       });
+
+      if (Platform.OS === 'android') {
+        await this.requestNotificationPermission();
+      }
     } catch (e) {
       console.warn('Error setting audio mode:', e);
+    }
+  }
+
+  /**
+   * Request notification permission for playback notification shade controls on Android
+   */
+  public async requestNotificationPermission(): Promise<boolean> {
+    try {
+      if (Platform.OS === 'android') {
+        const res = await requestNotificationPermissionsAsync();
+        return res.granted;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Failed to request notification permission:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Check if notification permission is currently granted
+   */
+  public async getNotificationPermissionStatus(): Promise<boolean> {
+    try {
+      if (Platform.OS === 'android') {
+        return await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+      }
+      return true;
+    } catch (e) {
+      console.warn('Failed to get notification permission status:', e);
+      return false;
     }
   }
 
@@ -124,6 +163,71 @@ export class AudioPlayerService {
     await this.loadAndPlayCurrent();
   }
 
+  /**
+   * Resolves a local or content URI into a reliable playback URI for ExoPlayer/AVPlayer.
+   * Scoped storage and DocumentPicker content:// URIs are mirrored into app cache to ensure
+   * persistent read access and avoid transient security exceptions.
+   */
+  private async resolvePlayableUri(track: Track): Promise<string> {
+    const rawUri = track.uri;
+    if (!rawUri) return rawUri;
+
+    // Direct remote streams
+    if (rawUri.startsWith('http://') || rawUri.startsWith('https://')) {
+      return rawUri;
+    }
+
+    try {
+      // 1. If it's a MediaLibrary asset ID/URI, try to get localUri
+      if (track.id && !rawUri.startsWith('file://')) {
+        try {
+          const assetInfo = await MediaLibrary.getAssetInfoAsync(track.id);
+          if (assetInfo?.localUri) {
+            return assetInfo.localUri;
+          }
+        } catch {
+          // Fall through to content URI / direct file handling
+        }
+      }
+
+      // 2. Handle content:// URIs on Android
+      if (rawUri.startsWith('content://')) {
+        const baseDir = FileSystem.cacheDirectory || '';
+        const cacheFolder = `${baseDir}mm_audio/`;
+
+        const dirInfo = await FileSystem.getInfoAsync(cacheFolder);
+        if (!dirInfo.exists) {
+          await FileSystem.makeDirectoryAsync(cacheFolder, { intermediates: true });
+        }
+
+        // Determine file extension from filename or uri
+        const filename = track.filename || '';
+        const match = filename.match(/\.(mp3|flac|wav|m4a|aac|ogg|opus)$/i);
+        const ext = match ? match[0] : '.mp3';
+
+        const safeId = (track.id || 'track').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const targetPath = `${cacheFolder}${safeId}${ext}`;
+
+        const fileInfo = await FileSystem.getInfoAsync(targetPath);
+        if (fileInfo.exists && (fileInfo as any).size > 0) {
+          return targetPath;
+        }
+
+        await FileSystem.copyAsync({
+          from: rawUri,
+          to: targetPath,
+        });
+
+        return targetPath;
+      }
+
+      return rawUri;
+    } catch (err) {
+      console.warn('Failed to resolve playable URI, falling back to raw URI:', err);
+      return rawUri;
+    }
+  }
+
   private async loadAndPlayCurrent() {
     if (this.currentIndex < 0 || this.currentIndex >= this.queue.length) return;
 
@@ -142,7 +246,9 @@ export class AudioPlayerService {
       this.state.isBuffering = true;
       this.notify();
 
-      const newPlayer = createAudioPlayer(track.uri, {
+      const playableUri = await this.resolvePlayableUri(track);
+
+      const newPlayer = createAudioPlayer(playableUri, {
         updateInterval: 500,
       });
 
@@ -157,7 +263,7 @@ export class AudioPlayerService {
           albumTitle: track.album,
           artworkUrl: track.artwork,
         });
-      } catch (lockErr) {
+      } catch {
         // Lock screen controls optional fallback
       }
 
@@ -182,6 +288,14 @@ export class AudioPlayerService {
   }
 
   private onPlaybackStatusUpdate = (status: AudioStatus) => {
+    if (status.error) {
+      console.warn('Audio playback status error:', status.error);
+      this.state.isPlaying = false;
+      this.state.isBuffering = false;
+      this.notify();
+      return;
+    }
+
     this.state.isPlaying = status.playing;
     this.state.isBuffering = status.isBuffering;
     this.state.position = Math.floor(status.currentTime);

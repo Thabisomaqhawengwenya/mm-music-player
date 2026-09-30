@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { AudioPlayerService } from '@/src/services/audioPlayer';
 import {
   AppTheme,
   AudioSettings,
@@ -119,6 +120,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [playerCustomization, setPlayerCustomization] = useState<PlayerCustomizationSettings>(
     propCustomization || defaultPlayerCustomizationSettings
   );
+  const [hasNotifPermission, setHasNotifPermission] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (activeCategory === 'notifications' || activeCategory === 'root') {
+      AudioPlayerService.getInstance()
+        .getNotificationPermissionStatus()
+        .then((granted) => setHasNotifPermission(granted))
+        .catch(() => setHasNotifPermission(false));
+    }
+  }, [activeCategory]);
+
+  const handleRequestNotifPermission = async () => {
+    try {
+      const granted = await AudioPlayerService.getInstance().requestNotificationPermission();
+      setHasNotifPermission(granted);
+      if (granted) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+    } catch {
+      setHasNotifPermission(false);
+    }
+  };
 
   useEffect(() => {
     loadAllSettings();
@@ -1137,6 +1160,58 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <Text style={[styles.subPageDesc, { color: theme.textSecondary }]}>
               Customize system media notifications in Android status bar and iOS Control Center.
             </Text>
+
+            {/* Playback Controls Permission Card */}
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder, marginBottom: 16 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 19,
+                    backgroundColor: hasNotifPermission ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 12,
+                  }}
+                >
+                  <Ionicons
+                    name={hasNotifPermission ? 'checkmark-circle' : 'notifications-outline'}
+                    size={22}
+                    color={hasNotifPermission ? '#10B981' : theme.accent}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: theme.textPrimary }]}>
+                    Playback Controls Permission
+                  </Text>
+                  <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
+                    {hasNotifPermission
+                      ? 'Permission Granted — Media controls and lockscreen art active'
+                      : 'Required on Android 13+ to display media controls in notification shade and lockscreen'}
+                  </Text>
+                </View>
+              </View>
+
+              {!hasNotifPermission && (
+                <TactileButton
+                  onPress={handleRequestNotifPermission}
+                  style={{
+                    backgroundColor: theme.accent,
+                    paddingVertical: 10,
+                    paddingHorizontal: 16,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 12,
+                  }}
+                >
+                  <Text style={{ color: theme.background, fontWeight: '700', fontSize: 14 }}>
+                    Grant Notification Permission
+                  </Text>
+                </TactileButton>
+              )}
+            </View>
 
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
               <View style={styles.switchRow}>

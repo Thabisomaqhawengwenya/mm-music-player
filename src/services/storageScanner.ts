@@ -52,11 +52,11 @@ export const DEMO_TRACKS: Track[] = [
 
 export class StorageScannerService {
   /**
-   * Request media permissions on Android/iOS
+   * Request media permissions on Android/iOS (including granular audio permissions on Android 13+)
    */
   static async requestPermissions(): Promise<boolean> {
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, ['audio']);
       return status === 'granted';
     } catch (e) {
       console.warn('Failed to request media permissions', e);
@@ -261,7 +261,7 @@ export class StorageScannerService {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['audio/*'],
         multiple: true,
-        copyToCacheDirectory: false,
+        copyToCacheDirectory: true,
       });
 
       if (result.canceled || !result.assets) {
