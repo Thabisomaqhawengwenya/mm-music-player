@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppTheme, Track, ListeningStats, TrackPlayStat } from '@/src/types';
 import { StorageService, defaultListeningStats } from '@/src/services/playlistStorage';
 import { formatFileSize } from '@/src/utils/formatters';
+import { detectAudioFormat } from '@/src/utils/audioFormats';
 import { TactileButton } from './TactileButton';
 import { useHapticFeedback } from '@/app/hooks';
 
@@ -191,22 +192,40 @@ export const ListeningStatsView: React.FC<ListeningStatsViewProps> = ({
     return `${label} (Evening Groove)`;
   }, [stats.hourlyPlays]);
 
-  // Library Audiophile Stats
+  // Library Audiophile Stats with Multi-Format Breakdown
   const audiophileTelemetry = useMemo(() => {
     let hiResCount = 0;
     let totalBytes = 0;
+    const formatBreakdown: Record<string, number> = {
+      MP3: 0,
+      FLAC: 0,
+      WAV: 0,
+      AAC: 0,
+      OGG: 0,
+      OTHER: 0,
+    };
+
     allTracks.forEach((t) => {
       if (t.size) totalBytes += t.size;
-      const fn = (t.filename || t.uri || '').toLowerCase();
-      if (fn.endsWith('.flac') || fn.endsWith('.wav') || fn.endsWith('.alac')) {
+      const details = detectAudioFormat(t.filename || t.uri);
+      const fmt = t.format || details.format;
+      if (t.isLossless || details.isLossless) {
         hiResCount++;
       }
+
+      if (fmt === 'MP3') formatBreakdown.MP3++;
+      else if (fmt === 'FLAC' || fmt === 'ALAC') formatBreakdown.FLAC++;
+      else if (fmt === 'WAV' || fmt === 'AIFF') formatBreakdown.WAV++;
+      else if (fmt === 'AAC' || fmt === 'M4A') formatBreakdown.AAC++;
+      else if (fmt === 'OGG' || fmt === 'OPUS') formatBreakdown.OGG++;
+      else formatBreakdown.OTHER++;
     });
 
     return {
       hiResCount,
       totalBytes,
       totalTracks: allTracks.length,
+      formatBreakdown,
     };
   }, [allTracks]);
 
@@ -572,6 +591,48 @@ Powered by MM Music Player — Pure Offline Audio.`;
                   {formatFileSize(audiophileTelemetry.totalBytes)}
                 </Text>
                 <Text style={[styles.telemetryLabel, { color: theme.textTertiary }]}>Storage Used</Text>
+              </View>
+            </View>
+
+            {/* Multi-Format Distribution Pills */}
+            <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.surfaceBorder }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textTertiary, letterSpacing: 0.5, marginBottom: 8 }}>
+                CODEC & FORMAT BREAKDOWN
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {[
+                  { label: 'MP3', count: audiophileTelemetry.formatBreakdown.MP3, color: '#64748B' },
+                  { label: 'FLAC / Hi-Res', count: audiophileTelemetry.formatBreakdown.FLAC, color: '#10B981' },
+                  { label: 'WAV / PCM', count: audiophileTelemetry.formatBreakdown.WAV, color: '#06B6D4' },
+                  { label: 'AAC / M4A', count: audiophileTelemetry.formatBreakdown.AAC, color: '#8B5CF6' },
+                  { label: 'OGG / OPUS', count: audiophileTelemetry.formatBreakdown.OGG, color: '#F59E0B' },
+                  ...(audiophileTelemetry.formatBreakdown.OTHER > 0
+                    ? [{ label: 'Other Audio', count: audiophileTelemetry.formatBreakdown.OTHER, color: '#475569' }]
+                    : []),
+                ].map((item) => (
+                  <View
+                    key={item.label}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: `${item.color}18`,
+                      borderColor: `${item.color}44`,
+                      borderWidth: 1,
+                      borderRadius: 6,
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      gap: 5,
+                    }}
+                  >
+                    <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: item.color }} />
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: theme.textPrimary }}>
+                      {item.label}:
+                    </Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: item.color }}>
+                      {item.count}
+                    </Text>
+                  </View>
+                ))}
               </View>
             </View>
           </View>

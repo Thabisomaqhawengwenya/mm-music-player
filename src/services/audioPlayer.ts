@@ -200,10 +200,10 @@ export class AudioPlayerService {
           await FileSystem.makeDirectoryAsync(cacheFolder, { intermediates: true });
         }
 
-        // Determine file extension from filename or uri
-        const filename = track.filename || '';
-        const match = filename.match(/\.(mp3|flac|wav|m4a|aac|ogg|opus)$/i);
-        const ext = match ? match[0] : '.mp3';
+        // Determine file extension from filename, uri, or detected format
+        const filename = track.filename || track.uri || '';
+        const match = filename.match(/\.(mp3|flac|wav|wave|m4a|m4b|aac|ogg|oga|opus|alac|aif|aiff|wma|webm|amr|mid|midi)$/i);
+        const ext = match ? match[0].toLowerCase() : '.mp3';
 
         const safeId = (track.id || 'track').replace(/[^a-zA-Z0-9_-]/g, '_');
         const targetPath = `${cacheFolder}${safeId}${ext}`;

@@ -38,6 +38,7 @@ import { InteractiveLyricsView } from './InteractiveLyricsView';
 import { InteractiveTurntableDeck } from './InteractiveTurntableDeck';
 import { DynamicVisualizerStage } from './DynamicVisualizerStage';
 import { DjQuickFxModal } from './DjQuickFxModal';
+import { AudioFormatBadge } from './AudioFormatBadge';
 
 interface NowPlayingModalProps {
   visible: boolean;
@@ -407,9 +408,18 @@ export const NowPlayingModal: React.FC<NowPlayingModalProps> = ({
           {/* Track Details & Favorite */}
           <View style={styles.metaRow}>
             <View style={styles.metaTextCol}>
-              <Text style={[styles.trackTitle, { color: theme.textPrimary }]} numberOfLines={1}>
-                {track.title}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                <Text style={[styles.trackTitle, { color: theme.textPrimary, flexShrink: 1 }]} numberOfLines={1}>
+                  {track.title}
+                </Text>
+                <AudioFormatBadge
+                  format={track.format}
+                  filename={track.filename || track.uri}
+                  isLossless={track.isLossless}
+                  size="small"
+                  showCodecName={true}
+                />
+              </View>
               <Text style={[styles.trackArtist, { color: theme.textSecondary }]} numberOfLines={1}>
                 {track.artist}
               </Text>

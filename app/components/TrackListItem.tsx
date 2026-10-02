@@ -17,6 +17,7 @@ import { TactileButton } from './TactileButton';
 import { PixelArtworkFallback } from './PixelArtworkFallback';
 import { formatTime } from '@/src/utils/formatters';
 import { LordiconAnimatedIcon } from './LordiconAnimatedIcon';
+import { AudioFormatBadge } from './AudioFormatBadge';
 
 interface TrackListItemProps {
   track: Track;
@@ -150,12 +151,12 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
             >
               {track.title}
             </Text>
-            {((track.filename || track.uri || '').toLowerCase().endsWith('.flac') ||
-              (track.filename || track.uri || '').toLowerCase().endsWith('.wav')) && (
-              <View style={[styles.losslessBadge, { backgroundColor: theme.accentGlow }]}>
-                <Text style={[styles.losslessBadgeText, { color: theme.accent }]}>HI-RES</Text>
-              </View>
-            )}
+            <AudioFormatBadge
+              format={track.format}
+              filename={track.filename || track.uri}
+              isLossless={track.isLossless}
+              size="small"
+            />
           </View>
           <Text style={[styles.artist, { color: theme.textSecondary }]} numberOfLines={1}>
             {track.artist} {track.album ? `• ${track.album}` : ''}

@@ -3,8 +3,9 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Track, Album, Artist, Genre } from '../types';
 import { StorageService } from './playlistStorage';
 import { SmartMixService } from './smartMixService';
+import { detectAudioFormat, AUDIO_FORMAT_MIME_TYPES } from '../utils/audioFormats';
 
-// High quality offline demo audio samples for instant playback in emulator, Expo Go, or test environments
+// High quality offline demo audio samples covering multiple formats: MP3, FLAC, WAV, AAC, OGG
 export const DEMO_TRACKS: Track[] = [
   {
     id: 'demo_1',
@@ -19,35 +20,88 @@ export const DEMO_TRACKS: Track[] = [
     year: '2026',
     folder: 'Internal / Demo Music',
     size: 3420000,
+    format: 'MP3',
+    isLossless: false,
+    bitrate: 320,
+    sampleRate: 44100,
+    bitDepth: 16,
   },
   {
     id: 'demo_2',
-    uri: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=electronic-future-beats-117997.mp3',
-    filename: 'electronic-future-beats.mp3',
-    title: 'Deep Horizon Odyssey',
+    uri: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=electronic-future-beats-117997.flac',
+    filename: 'electronic-future-beats.flac',
+    title: 'Deep Horizon Odyssey (24-bit)',
     artist: 'Kowalski Modular Collective',
-    album: 'Pulse Code',
+    album: 'Pulse Code Studio Master',
     duration: 168,
     artwork: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop',
     genre: 'Electronic / Ambient',
     year: '2025',
-    folder: 'Internal / Demo Music',
-    size: 4120000,
+    folder: 'Hi-Res Lossless / FLAC',
+    size: 18450000,
+    format: 'FLAC',
+    isLossless: true,
+    bitrate: 1411,
+    sampleRate: 96000,
+    bitDepth: 24,
   },
   {
     id: 'demo_3',
-    uri: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=chill-abstract-intention-12099.mp3',
-    filename: 'chill-abstract-intention.mp3',
-    title: 'Velvet Groove & Bassline',
+    uri: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=chill-abstract-intention-12099.wav',
+    filename: 'chill-abstract-intention.wav',
+    title: 'Velvet Groove & Bassline (PCM)',
     artist: 'Analog Resonators',
     album: 'Tapes & Transistors',
     duration: 124,
     artwork: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=600&auto=format&fit=crop',
     genre: 'Neo-Soul / Jazz',
     year: '2026',
-    folder: 'Internal / Demo Music',
-    size: 2980000,
-  }
+    folder: 'Studio Masters / WAV',
+    size: 21890000,
+    format: 'WAV',
+    isLossless: true,
+    bitrate: 1411,
+    sampleRate: 48000,
+    bitDepth: 24,
+  },
+  {
+    id: 'demo_4',
+    uri: 'https://cdn.pixabay.com/download/audio/2021/08/04/audio_bb630cc098.mp3?filename=sunset-landscape-aac.aac',
+    filename: 'sunset-landscape.aac',
+    title: 'Solar Radiance Harmony',
+    artist: 'Aura Acoustic',
+    album: 'Sunlight Sessions',
+    duration: 138,
+    artwork: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600&auto=format&fit=crop',
+    genre: 'Acoustic / Folk',
+    year: '2026',
+    folder: 'Compressed / AAC',
+    size: 3890000,
+    format: 'AAC',
+    isLossless: false,
+    bitrate: 256,
+    sampleRate: 44100,
+    bitDepth: 16,
+  },
+  {
+    id: 'demo_5',
+    uri: 'https://cdn.pixabay.com/download/audio/2022/05/16/audio_c0c000e318.mp3?filename=lofi-chill-medium-ogg.ogg',
+    filename: 'lofi-chill-medium.ogg',
+    title: 'Celestial Dreamscape',
+    artist: 'Orbit Synths',
+    album: 'Cosmic Drift',
+    duration: 152,
+    artwork: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop',
+    genre: 'Ambient / Drone',
+    year: '2026',
+    folder: 'Open Codec / OGG',
+    size: 4210000,
+    format: 'OGG',
+    isLossless: false,
+    bitrate: 320,
+    sampleRate: 48000,
+    bitDepth: 16,
+  },
 ];
 
 export class StorageScannerService {
@@ -89,6 +143,7 @@ export class StorageScannerService {
 
         scannedTracks = assets.map((asset) => {
           const rawFilename = asset.filename || 'Unknown Track';
+          const formatDetails = detectAudioFormat(rawFilename);
           const cleanTitle = rawFilename.replace(/\.[^/.]+$/, '').replace(/^[0-9]+[_\s.-]*/, '');
           const folderName = asset.uri.includes('/')
             ? asset.uri.substring(0, asset.uri.lastIndexOf('/')).split('/').pop() || 'Music'
@@ -108,6 +163,8 @@ export class StorageScannerService {
             year: new Date(asset.creationTime || Date.now()).getFullYear().toString(),
             size: undefined,
             isFavorite: favorites.includes(asset.id),
+            format: formatDetails.format,
+            isLossless: formatDetails.isLossless,
           };
         });
       } catch (err) {
@@ -259,7 +316,7 @@ export class StorageScannerService {
   static async pickAudioFiles(): Promise<Track[]> {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['audio/*'],
+        type: AUDIO_FORMAT_MIME_TYPES,
         multiple: true,
         copyToCacheDirectory: true,
       });
@@ -270,6 +327,7 @@ export class StorageScannerService {
 
       const newTracks: Track[] = result.assets.map((file) => {
         const rawFilename = file.name || 'Picked Audio Track';
+        const formatDetails = detectAudioFormat(rawFilename);
         const cleanTitle = rawFilename.replace(/\.[^/.]+$/, '');
 
         return {
@@ -285,6 +343,8 @@ export class StorageScannerService {
           year: new Date().getFullYear().toString(),
           genre: 'Local File',
           isFavorite: false,
+          format: formatDetails.format,
+          isLossless: formatDetails.isLossless,
         };
       });
 

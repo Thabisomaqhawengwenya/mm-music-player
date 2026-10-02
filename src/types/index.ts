@@ -1,3 +1,16 @@
+export type AudioFormatType =
+  | 'MP3'
+  | 'FLAC'
+  | 'AAC'
+  | 'OGG'
+  | 'WAV'
+  | 'M4A'
+  | 'OPUS'
+  | 'ALAC'
+  | 'AIFF'
+  | 'WMA'
+  | 'OTHER';
+
 export interface Track {
   id: string;
   uri: string;
@@ -15,6 +28,10 @@ export interface Track {
   trackNumber?: number;
   lyrics?: string;
   bitrate?: number;
+  format?: AudioFormatType;
+  isLossless?: boolean;
+  sampleRate?: number; // in Hz, e.g. 44100, 48000, 96000, 192000
+  bitDepth?: number; // in bits, e.g. 16, 24, 32
 }
 
 export type RepeatMode = 'off' | 'all' | 'one';
